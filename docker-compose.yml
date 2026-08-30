@@ -3,6 +3,9 @@ services:
     build: .
     container_name: dui
     network_mode: host
+    # ports:
+    #   - 8067:8067/tcp
+    #   - 67:67/udp
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -11,7 +14,7 @@ services:
       - ./config/users.yaml:/data/users.yaml:ro
     environment:
       DUI_INTERFACE: eth0
-      DUI_HTTP_PORT: 8080
+      DUI_HTTP_PORT: 8067
       DUI_SERVER_NAME: "DHCP UI (DUI)"
     restart: unless-stopped
 

@@ -10,6 +10,20 @@ const emptySubnet = {
   options: { routers: [''] },
 }
 
+/** dhcpd.conf parser returns a string for a single router, or a list when comma-separated. */
+function routersList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map(String).filter(Boolean)
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
+  }
+  return []
+}
+
 export function NetworksPage() {
   const { isAdmin } = useAuth()
   const [config, setConfig] = useState<DhcpConfig | null>(null)
@@ -37,7 +51,7 @@ export function NetworksPage() {
       netmask: form.netmask,
       range: form.range.start && form.range.end ? form.range : null,
       options: {
-        routers: [(form.options.routers as string[])[0]].filter(Boolean),
+        routers: routersList(form.options.routers).slice(0, 1),
       },
     }
     try {
@@ -52,11 +66,12 @@ export function NetworksPage() {
 
   function startEdit(subnet: DhcpSubnet) {
     setEditingId(subnet.id)
+    const routers = routersList(subnet.options?.routers)
     setForm({
       network: subnet.network,
       netmask: subnet.netmask,
       range: subnet.range || { start: '', end: '' },
-      options: { routers: (subnet.options.routers as string[]) || [''] },
+      options: { routers: routers.length ? routers : [''] },
     })
   }
 
@@ -90,7 +105,7 @@ export function NetworksPage() {
                 <td>
                   {subnet.range ? `${subnet.range.start} - ${subnet.range.end}` : '—'}
                 </td>
-                <td>{((subnet.options.routers as string[]) || []).join(', ') || '—'}</td>
+                <td>{routersList(subnet.options?.routers).join(', ') || '—'}</td>
                 {isAdmin && (
                   <td className="actions">
                     <button className="secondary" onClick={() => startEdit(subnet)}>
@@ -134,7 +149,7 @@ export function NetworksPage() {
           <label>
             Router
             <input
-              value={(form.options.routers as string[])[0] || ''}
+              value={routersList(form.options.routers)[0] || ''}
               onChange={(e) => setForm({ ...form, options: { routers: [e.target.value] } })}
             />
           </label>
