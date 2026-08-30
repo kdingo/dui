@@ -16,6 +16,10 @@ GLOBAL_DIRECTIVES = {
 }
 
 
+def _is_empty_option_value(value: Any) -> bool:
+    return value is None or value == "" or value == []
+
+
 def _format_option_value(value: Any) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
@@ -32,17 +36,19 @@ def _format_option_value(value: Any) -> str:
 
 def _write_options(lines: list[str], options: dict[str, Any], indent: str = "  ") -> None:
     for key, value in options.items():
-        if key in GLOBAL_DIRECTIVES:
+        if key in GLOBAL_DIRECTIVES or _is_empty_option_value(value):
             continue
         lines.append(f"{indent}option {key} {_format_option_value(value)};")
 
 
 def _write_global_directives(lines: list[str], options: dict[str, Any]) -> None:
     for key in ("default-lease-time", "max-lease-time", "min-lease-time"):
-        if key in options:
+        if key in options and not _is_empty_option_value(options[key]):
             lines.append(f"{key} {_format_option_value(options[key])};")
     for key, value in options.items():
         if key in GLOBAL_DIRECTIVES or key in {"default-lease-time", "max-lease-time", "min-lease-time"}:
+            continue
+        if _is_empty_option_value(value):
             continue
         lines.append(f"option {key} {_format_option_value(value)};")
 

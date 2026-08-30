@@ -3,10 +3,26 @@ import { api } from '../api/client'
 import type { DhcpConfig } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
+function optionToInput(value: unknown): string {
+  if (value == null || value === '') return ''
+  if (Array.isArray(value)) return value.join(', ')
+  return String(value)
+}
+
+function splitList(value: string): string[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 export function OptionsPage() {
   const { isAdmin } = useAuth()
   const [config, setConfig] = useState<DhcpConfig | null>(null)
   const [dns, setDns] = useState('')
+  const [ntp, setNtp] = useState('')
+  const [domainName, setDomainName] = useState('')
+  const [domainSearch, setDomainSearch] = useState('')
   const [leaseTime, setLeaseTime] = useState('86400')
   const [maxLeaseTime, setMaxLeaseTime] = useState('604800')
   const [error, setError] = useState('')
@@ -17,8 +33,10 @@ export function OptionsPage() {
       .getConfig()
       .then((data) => {
         setConfig(data)
-        const dnsServers = data.global_options['domain-name-servers']
-        setDns(Array.isArray(dnsServers) ? dnsServers.join(', ') : String(dnsServers || ''))
+        setDns(optionToInput(data.global_options['domain-name-servers']))
+        setNtp(optionToInput(data.global_options['ntp-servers']))
+        setDomainName(optionToInput(data.global_options['domain-name']))
+        setDomainSearch(optionToInput(data.global_options['domain-search']))
         setLeaseTime(String(data.global_options['default-lease-time'] || 86400))
         setMaxLeaseTime(String(data.global_options['max-lease-time'] || 604800))
       })
@@ -29,12 +47,26 @@ export function OptionsPage() {
     event.preventDefault()
     if (!isAdmin || !config) return
     try {
-      const global_options = {
+      const global_options: Record<string, unknown> = {
         ...config.global_options,
-        'domain-name-servers': dns.split(',').map((value) => value.trim()).filter(Boolean),
+        'domain-name-servers': splitList(dns),
         'default-lease-time': Number(leaseTime),
         'max-lease-time': Number(maxLeaseTime),
       }
+
+      const ntpServers = splitList(ntp)
+      const searchList = splitList(domainSearch)
+      const trimmedDomain = domainName.trim()
+
+      if (ntpServers.length) global_options['ntp-servers'] = ntpServers
+      else delete global_options['ntp-servers']
+
+      if (trimmedDomain) global_options['domain-name'] = trimmedDomain
+      else delete global_options['domain-name']
+
+      if (searchList.length) global_options['domain-search'] = searchList
+      else delete global_options['domain-search']
+
       const updated = await api.updateOptions(global_options)
       setConfig(updated)
       setMessage('Options saved and applied.')
@@ -52,6 +84,18 @@ export function OptionsPage() {
         <label>
           DNS servers (comma separated)
           <input value={dns} onChange={(e) => setDns(e.target.value)} disabled={!isAdmin} />
+        </label>
+        <label>
+          NTP servers (comma separated)
+          <input value={ntp} onChange={(e) => setNtp(e.target.value)} disabled={!isAdmin} />
+        </label>
+        <label>
+          Domain name
+          <input value={domainName} onChange={(e) => setDomainName(e.target.value)} disabled={!isAdmin} />
+        </label>
+        <label>
+          Domain search (comma separated)
+          <input value={domainSearch} onChange={(e) => setDomainSearch(e.target.value)} disabled={!isAdmin} />
         </label>
         <label>
           Default lease time (seconds)

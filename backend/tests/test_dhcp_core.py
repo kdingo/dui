@@ -57,6 +57,34 @@ class DhcpCoreTests(unittest.TestCase):
         self.assertEqual(usage[0].used, 1)
         self.assertGreater(usage[0].total, 0)
 
+    def test_skips_empty_global_options(self) -> None:
+        config = DhcpConfig(
+            global_options={
+                "domain-name-servers": ["192.168.1.1"],
+                "ntp-servers": [],
+                "domain-name": "",
+                "domain-search": None,
+            }
+        )
+        conf = generate_dhcpd_conf(config)
+        self.assertIn("option domain-name-servers 192.168.1.1;", conf)
+        self.assertNotIn("option ntp-servers", conf)
+        self.assertNotIn("option domain-name ", conf)
+        self.assertNotIn("option domain-search", conf)
+
+    def test_emits_ntp_and_domain_options(self) -> None:
+        config = DhcpConfig(
+            global_options={
+                "ntp-servers": ["192.168.1.10", "192.168.1.11"],
+                "domain-name": "example.lan",
+                "domain-search": ["lan", "example.lan"],
+            }
+        )
+        conf = generate_dhcpd_conf(config)
+        self.assertIn("option ntp-servers 192.168.1.10, 192.168.1.11;", conf)
+        self.assertIn('option domain-name "example.lan";', conf)
+        self.assertIn('option domain-search "lan", "example.lan";', conf)
+
     def test_validate_generated_conf_when_dhcpd_available(self) -> None:
         config = DhcpConfig(
             subnets=[
