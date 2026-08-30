@@ -10,8 +10,7 @@ services:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      - dui-data:/data
-      - ./config/users.yaml:/data/users.yaml:ro
+      - ./dui-data:/data
     environment:
       DUI_INTERFACE: eth0
       DUI_HTTP_PORT: 8067

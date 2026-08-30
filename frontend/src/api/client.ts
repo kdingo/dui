@@ -18,13 +18,20 @@ export function getCsrfToken() {
   return csrfToken
 }
 
+function csrfFromCookie() {
+  if (typeof document === 'undefined') return ''
+  const match = document.cookie.split('; ').find((row) => row.startsWith('dui_csrf='))
+  return match ? decodeURIComponent(match.slice('dui_csrf='.length)) : ''
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
-  if (init.method && init.method !== 'GET' && csrfToken) {
-    headers.set('X-CSRF-Token', csrfToken)
+  const token = csrfToken || csrfFromCookie()
+  if (init.method && init.method !== 'GET' && token) {
+    headers.set('X-CSRF-Token', token)
   }
 
   const response = await fetch(path, {
@@ -162,10 +169,21 @@ export const api = {
   listUsers() {
     return request<{ users: User[] }>('/api/auth/users')
   },
-  updateUsers(users: Array<{ username: string; role: string; password?: string }>) {
+  createUser(user: { username: string; role: User['role']; password: string }) {
     return request<{ users: User[] }>('/api/auth/users', {
-      method: 'PUT',
-      body: JSON.stringify({ users }),
+      method: 'POST',
+      body: JSON.stringify(user),
+    })
+  },
+  updateUser(username: string, payload: { role?: User['role']; password?: string }) {
+    return request<{ users: User[] }>(`/api/auth/users/${encodeURIComponent(username)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  },
+  deleteUser(username: string) {
+    return request<{ users: User[] }>(`/api/auth/users/${encodeURIComponent(username)}`, {
+      method: 'DELETE',
     })
   },
 }

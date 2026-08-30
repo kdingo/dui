@@ -53,12 +53,12 @@ RUN chmod +x /entrypoint.sh /etc/s6-overlay/s6-rc.d/dhcpd/run /etc/s6-overlay/s6
     rm -f /etc/nginx/sites-enabled/default
 
 ENV DUI_INTERFACE=eth0 \
-    DUI_HTTP_PORT=8080 \
+    DUI_HTTP_PORT=8067 \
     DUI_SERVER_NAME="DHCP UI (DUI)" \
     PYTHONPATH=/app/backend
 
 VOLUME ["/data"]
-EXPOSE 8080/tcp
+EXPOSE 8067/tcp
 EXPOSE 67/udp
 
 ENTRYPOINT ["/entrypoint.sh"]

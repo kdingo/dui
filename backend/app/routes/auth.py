@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import secrets
 
-import bcrypt
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
@@ -67,12 +68,23 @@ async def me(user: dict[str, str] = Depends(get_current_user)) -> dict[str, str]
 
 class UserUpdate(BaseModel):
     username: str
-    role: str = Field(pattern="^(admin|viewer)$")
+    role: Literal["admin", "viewer"]
     password: str | None = None
 
 
 class UsersUpdateRequest(BaseModel):
     users: list[UserUpdate]
+
+
+class UserCreateRequest(BaseModel):
+    username: str
+    role: Literal["admin", "viewer"]
+    password: str = Field(min_length=1)
+
+
+class UserPatchRequest(BaseModel):
+    role: Literal["admin", "viewer"] | None = None
+    password: str | None = None
 
 
 @router.get("/users")
@@ -91,6 +103,39 @@ async def update_users(
         if user.password:
             password_hashes[user.username] = hash_password(user.password)
     UserStore().save_users([u.model_dump(exclude={"password"}) for u in payload.users], password_hashes)
+    return {"users": UserStore().list_users()}
+
+
+@router.post("/users")
+async def create_user(
+    payload: UserCreateRequest,
+    _: dict[str, str] = Depends(require_admin),
+    __: None = Depends(verify_csrf),
+) -> dict[str, list]:
+    UserStore().create_user(payload.username, payload.password, payload.role)
+    return {"users": UserStore().list_users()}
+
+
+@router.patch("/users/{username}")
+async def patch_user(
+    username: str,
+    payload: UserPatchRequest,
+    _: dict[str, str] = Depends(require_admin),
+    __: None = Depends(verify_csrf),
+) -> dict[str, list]:
+    if payload.role is None and not payload.password:
+        raise HTTPException(status_code=400, detail="No changes provided")
+    UserStore().update_user(username, role=payload.role, password=payload.password)
+    return {"users": UserStore().list_users()}
+
+
+@router.delete("/users/{username}")
+async def delete_user(
+    username: str,
+    _: dict[str, str] = Depends(require_admin),
+    __: None = Depends(verify_csrf),
+) -> dict[str, list]:
+    UserStore().delete_user(username)
     return {"users": UserStore().list_users()}
 
 

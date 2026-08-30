@@ -35,7 +35,10 @@ export function AppLayout({ serverName }: AppLayoutProps) {
           {isAdmin && (
             <>
               <span className="nav-group-title">Admin</span>
-              <NavLink to="/admin">Server admin</NavLink>
+              <NavLink to="/admin" end>
+                Server admin
+              </NavLink>
+              <NavLink to="/admin/users">Users</NavLink>
             </>
           )}
         </nav>

@@ -14,6 +14,7 @@ import { OptionsPage } from './pages/OptionsPage'
 import { ImportExportPage } from './pages/ImportExportPage'
 import { SnapshotsPage } from './pages/SnapshotsPage'
 import { AdminPage } from './pages/AdminPage'
+import { UsersPage } from './pages/UsersPage'
 
 function ProtectedRoute({ user, children }: { user: User | null; children: React.ReactNode }) {
   const location = useLocation()
@@ -64,6 +65,7 @@ export default function App() {
           <Route path="configure/import-export" element={<ImportExportPage />} />
           <Route path="configure/snapshots" element={<SnapshotsPage />} />
           <Route path="admin" element={<AdminPage />} />
+          <Route path="admin/users" element={<UsersPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

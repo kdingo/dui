@@ -57,22 +57,72 @@ class UserStore:
             return user
         return None
 
+    def _persist_users(self, data: dict[str, Any], users: list[dict[str, str]]) -> None:
+        if not any(u.get("role", "viewer") == "admin" for u in users):
+            raise HTTPException(status_code=400, detail="At least one admin user is required")
+        data["users"] = users
+        self.settings.users_yaml.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
     def save_users(self, users: list[dict[str, str]], password_hashes: dict[str, str] | None = None) -> None:
         data = self.load()
+        existing_by_name = {u.get("username"): u for u in data.get("users", [])}
         updated = []
         for user in users:
             username = user["username"]
-            existing = self.get_user(username)
+            existing = existing_by_name.get(username)
             entry = {"username": username, "role": user.get("role", "viewer")}
             if password_hashes and username in password_hashes:
                 entry["password_hash"] = password_hashes[username]
             elif existing:
-                entry["password_hash"] = existing.password_hash
+                entry["password_hash"] = existing["password_hash"]
             else:
                 raise HTTPException(status_code=400, detail=f"Missing password for new user {username}")
             updated.append(entry)
-        data["users"] = updated
-        self.settings.users_yaml.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        self._persist_users(data, updated)
+
+    def create_user(self, username: str, password: str, role: str) -> None:
+        username = username.strip()
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required")
+        if not password:
+            raise HTTPException(status_code=400, detail="Password is required")
+        data = self.load()
+        users = list(data.get("users") or [])
+        if any(u.get("username") == username for u in users):
+            raise HTTPException(status_code=400, detail=f"User {username} already exists")
+        users.append(
+            {
+                "username": username,
+                "role": role,
+                "password_hash": hash_password(password),
+            }
+        )
+        self._persist_users(data, users)
+
+    def update_user(self, username: str, role: str | None = None, password: str | None = None) -> None:
+        data = self.load()
+        users = list(data.get("users") or [])
+        found = False
+        for user in users:
+            if user.get("username") != username:
+                continue
+            found = True
+            if role is not None:
+                user["role"] = role
+            if password:
+                user["password_hash"] = hash_password(password)
+            break
+        if not found:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        self._persist_users(data, users)
+
+    def delete_user(self, username: str) -> None:
+        data = self.load()
+        users = list(data.get("users") or [])
+        remaining = [u for u in users if u.get("username") != username]
+        if len(remaining) == len(users):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        self._persist_users(data, remaining)
 
 
 class LoginRateLimiter:

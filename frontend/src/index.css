@@ -150,6 +150,11 @@ button.danger {
   color: #fff;
 }
 
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .form-grid {
   display: grid;
   gap: 0.75rem;
