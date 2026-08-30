@@ -1,0 +1,19 @@
+services:
+  dui:
+    build: .
+    container_name: dui
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - dui-data:/data
+      - ./config/users.yaml:/data/users.yaml:ro
+    environment:
+      DUI_INTERFACE: eth0
+      DUI_HTTP_PORT: 8080
+      DUI_SERVER_NAME: "DHCP UI (DUI)"
+    restart: unless-stopped
+
+volumes:
+  dui-data:

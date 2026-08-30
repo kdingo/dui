@@ -1,0 +1,27 @@
+# Secrets / local config
+config/users.yaml
+.env
+.env.*
+
+# Runtime data (local uvicorn)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Frontend
+frontend/node_modules
+frontend/dist
+
+# Local / OS
+.vscode/
+.idea/
+cookies.txt
+*.log
+.DS_Store
+Thumbs.db
