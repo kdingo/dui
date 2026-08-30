@@ -106,6 +106,25 @@ class DhcpCoreTests(unittest.TestCase):
             except FileNotFoundError:
                 self.skipTest("dhcpd not installed in test environment")
 
+    def test_subnet_name_is_json_metadata_not_in_conf(self) -> None:
+        subnet = DhcpSubnet(
+            id="s1",
+            name="LAN",
+            network="192.168.50.0",
+            netmask="255.255.255.0",
+            range=DhcpRange(start="192.168.50.100", end="192.168.50.200"),
+        )
+        restored = DhcpSubnet.model_validate_json(subnet.model_dump_json())
+        self.assertEqual(restored.name, "LAN")
+        self.assertIsNone(DhcpSubnet.model_validate({"id": "s2", "network": "10.0.0.0", "netmask": "255.255.255.0", "name": "  "}).name)
+
+        conf = generate_dhcpd_conf(DhcpConfig(subnets=[subnet]))
+        self.assertIn("subnet 192.168.50.0 netmask 255.255.255.0 {", conf)
+        self.assertNotIn("LAN", conf)
+
+        usage = compute_subnet_usage(DhcpConfig(subnets=[subnet]), [])
+        self.assertEqual(usage[0].name, "LAN")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,6 +4,7 @@ import type { DhcpConfig, DhcpSubnet } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 
 const emptySubnet = {
+  name: '',
   network: '',
   netmask: '255.255.255.0',
   range: { start: '', end: '' },
@@ -47,6 +48,7 @@ export function NetworksPage() {
     setError('')
     setMessage('')
     const payload = {
+      name: form.name.trim() || null,
       network: form.network,
       netmask: form.netmask,
       range: form.range.start && form.range.end ? form.range : null,
@@ -68,6 +70,7 @@ export function NetworksPage() {
     setEditingId(subnet.id)
     const routers = routersList(subnet.options?.routers)
     setForm({
+      name: subnet.name || '',
       network: subnet.network,
       netmask: subnet.netmask,
       range: subnet.range || { start: '', end: '' },
@@ -90,6 +93,7 @@ export function NetworksPage() {
         <table>
           <thead>
             <tr>
+              <th>Name</th>
               <th>Network</th>
               <th>Netmask</th>
               <th>Range</th>
@@ -100,6 +104,7 @@ export function NetworksPage() {
           <tbody>
             {config?.subnets.map((subnet) => (
               <tr key={subnet.id}>
+                <td>{subnet.name || '—'}</td>
                 <td>{subnet.network}</td>
                 <td>{subnet.netmask}</td>
                 <td>
@@ -124,6 +129,10 @@ export function NetworksPage() {
       {isAdmin && (
         <form className="panel form-grid" onSubmit={handleSubmit}>
           <h3>{editingId ? 'Edit subnet' : 'Add subnet'}</h3>
+          <label>
+            Name
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </label>
           <label>
             Network
             <input value={form.network} onChange={(e) => setForm({ ...form, network: e.target.value })} required />

@@ -47,6 +47,7 @@ async def apply_config(
 class SubnetPayload(BaseModel):
     network: str
     netmask: str
+    name: str | None = None
     range: DhcpRange | None = None
     options: dict = Field(default_factory=dict)
 

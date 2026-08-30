@@ -30,7 +30,7 @@ export function AppLayout({ serverName }: AppLayoutProps) {
           <NavLink to="/configure/networks">Networks</NavLink>
           <NavLink to="/configure/clients">DHCP clients</NavLink>
           <NavLink to="/configure/options">Options</NavLink>
-          <NavLink to="/configure/import-export">Import/export</NavLink>
+          <NavLink to="/configure/import-export">dhcpd.conf</NavLink>
           <NavLink to="/configure/snapshots">Config snapshots</NavLink>
           {isAdmin && (
             <>

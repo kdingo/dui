@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DhcpRange(BaseModel):
@@ -14,8 +14,18 @@ class DhcpSubnet(BaseModel):
     id: str
     network: str
     netmask: str
+    name: str | None = None
     range: DhcpRange | None = None
     options: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def empty_name_to_none(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, str) and not value.strip():
+            return None
+        return str(value)
 
 
 class DhcpHost(BaseModel):
@@ -71,6 +81,7 @@ class SubnetUsage(BaseModel):
     id: str
     network: str
     netmask: str
+    name: str | None = None
     range_start: str | None = None
     range_end: str | None = None
     total: int

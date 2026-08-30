@@ -36,7 +36,7 @@ export function ImportExportPage() {
 
   return (
     <div>
-      <h2>Import / export</h2>
+      <h2>dhcpd.conf</h2>
       {error && <div className="error">{error}</div>}
       {message && <p>{message}</p>}
       <div className="panel">

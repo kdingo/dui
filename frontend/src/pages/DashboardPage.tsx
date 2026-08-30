@@ -22,8 +22,13 @@ export function DashboardPage() {
         {subnets.map((subnet) => (
           <div className="card" key={subnet.id}>
             <h3>
-              {subnet.network}/{subnet.netmask}
+              {subnet.name || `${subnet.network}/${subnet.netmask}`}
             </h3>
+            {subnet.name && (
+              <p className="muted">
+                {subnet.network}/{subnet.netmask}
+              </p>
+            )}
             <p className="muted">
               Pool: {subnet.range_start || 'n/a'} – {subnet.range_end || 'n/a'}
             </p>
