@@ -170,14 +170,20 @@ def reload_dhcp_service(settings: Settings) -> None:
     subprocess.run(["pkill", "-HUP", "dhcpd"], check=False)
 
 
+def s6_svstat_is_running(svstat_output: str) -> bool:
+    """s6-svstat prints 'up ...' or 'down ..., normally up'; only the first token is the state."""
+    token = svstat_output.strip().split(None, 1)
+    return bool(token) and token[0] == "up"
+
+
 def dhcp_service_status(settings: Settings) -> dict[str, str | bool]:
     service = settings.s6_dhcpd_service
     s6_svstat = "/command/s6-svstat"
-    s6_svc = "/command/s6-svc"
     if service.exists():
         result = subprocess.run([s6_svstat, str(service)], capture_output=True, text=True)
-        running = result.returncode == 0 and " up " in result.stdout
-        return {"managed_by": "s6", "running": running, "detail": result.stdout.strip()}
+        detail = result.stdout.strip()
+        running = result.returncode == 0 and s6_svstat_is_running(detail)
+        return {"managed_by": "s6", "running": running, "detail": detail}
     result = subprocess.run(["pgrep", "-x", "dhcpd"], capture_output=True, text=True)
     running = result.returncode == 0
     return {"managed_by": "process", "running": running, "detail": result.stdout.strip()}

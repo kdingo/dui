@@ -11,7 +11,7 @@ from app.config import Settings
 from app.dhcp.conf_generator import generate_dhcpd_conf
 from app.dhcp.conf_parser import parse_dhcpd_conf
 from app.dhcp.leases import compute_subnet_usage, parse_leases
-from app.dhcp.manager import ConfigManager
+from app.dhcp.manager import ConfigManager, s6_svstat_is_running
 from app.dhcp.models import DhcpConfig, DhcpRange, DhcpSubnet
 from app.dhcp.validator import validate_dhcpd_conf
 
@@ -192,6 +192,17 @@ class ConfigBundleTests(unittest.TestCase):
             archive.writestr("config.json", self.config.model_dump_json())
         with self.assertRaisesRegex(ValueError, "missing dhcpd.conf"):
             self.manager.import_bundle(buffer.getvalue())
+
+
+class S6SvstatTests(unittest.TestCase):
+    def test_up_at_start_of_line_is_running(self) -> None:
+        self.assertTrue(s6_svstat_is_running("up (pid 53 pgid 53) 23825 seconds"))
+
+    def test_down_normally_up_is_stopped(self) -> None:
+        self.assertFalse(s6_svstat_is_running("down 5 seconds, normally up"))
+
+    def test_empty_is_stopped(self) -> None:
+        self.assertFalse(s6_svstat_is_running(""))
 
 
 if __name__ == "__main__":

@@ -69,13 +69,13 @@ export function AdminPage() {
           <p>{status?.running ? 'Running' : 'Stopped'}</p>
           <p className="muted">{status?.detail}</p>
           <div className="actions">
-            <button className="secondary" onClick={() => dhcpAction('start')}>
+            <button className="secondary" disabled={Boolean(status?.running)} onClick={() => dhcpAction('start')}>
               Start
             </button>
-            <button className="secondary" onClick={() => dhcpAction('stop')}>
+            <button className="secondary" disabled={!status?.running} onClick={() => dhcpAction('stop')}>
               Stop
             </button>
-            <button className="secondary" onClick={() => dhcpAction('restart')}>
+            <button className="secondary" disabled={!status?.running} onClick={() => dhcpAction('restart')}>
               Restart
             </button>
           </div>
