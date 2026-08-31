@@ -8,7 +8,7 @@ DHCP UI (DUI) is a Dockerized home-network DHCP server with a web management int
 - Lease viewer grouped by subnet
 - Live DHCP log viewer
 - Configure networks, fixed clients, and global options
-- Import/export raw `dhcpd.conf`
+- Import/export `dhcpd.conf` and `config.json` as a zip (preserves network names)
 - Persistent config snapshots
 - File-based user authentication with bcrypt hashes
 - Server admin: manage users, control `dhcpd`, restart/stop container

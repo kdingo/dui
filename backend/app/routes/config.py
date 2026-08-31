@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field
 
 from ..auth.deps import get_current_user, require_admin, verify_csrf
@@ -191,16 +191,23 @@ async def update_options(
 
 @router.get("/export")
 async def export_config(_: dict[str, str] = Depends(get_current_user)) -> Response:
-    content = ConfigManager().export_dhcpd_conf()
+    content = ConfigManager().export_bundle()
     return Response(
         content=content,
-        media_type="text/plain",
-        headers={"Content-Disposition": 'attachment; filename="dhcpd.conf"'},
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="dui-dhcp-config.zip"'},
     )
+
+
+@router.get("/dhcpd-conf")
+async def get_dhcpd_conf(_: dict[str, str] = Depends(get_current_user)) -> Response:
+    content = ConfigManager().export_dhcpd_conf()
+    return Response(content=content, media_type="text/plain")
 
 
 class ImportPayload(BaseModel):
     content: str
+    config_json: str | None = None
 
 
 @router.post("/import")
@@ -211,6 +218,24 @@ async def import_config(
 ) -> DhcpConfig:
     manager = ConfigManager()
     try:
-        return manager.import_dhcpd_conf(payload.content)
+        return manager.import_dhcpd_conf(payload.content, config_json=payload.config_json)
     except DhcpValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/import-zip")
+async def import_config_zip(
+    file: UploadFile = File(...),
+    _: dict[str, str] = Depends(require_admin),
+    __: None = Depends(verify_csrf),
+) -> DhcpConfig:
+    manager = ConfigManager()
+    try:
+        zip_bytes = await file.read()
+        return manager.import_bundle(zip_bytes)
+    except DhcpValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

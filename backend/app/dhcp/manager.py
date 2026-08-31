@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
+import io
 import os
 import shutil
 import signal
 import subprocess
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -95,8 +96,14 @@ class ConfigManager:
         validate_dhcpd_conf(self.settings.dhcpd_conf)
         reload_dhcp_service(self.settings)
 
-    def import_dhcpd_conf(self, content: str) -> DhcpConfig:
-        config = parse_dhcpd_conf(content)
+    def import_dhcpd_conf(self, content: str, config_json: str | None = None) -> DhcpConfig:
+        if config_json and config_json.strip():
+            try:
+                config = DhcpConfig.model_validate_json(config_json)
+            except Exception as exc:
+                raise ValueError(f"Invalid config.json: {exc}") from exc
+        else:
+            config = parse_dhcpd_conf(content)
         self.settings.dhcpd_conf.write_text(content, encoding="utf-8")
         validate_dhcpd_conf(self.settings.dhcpd_conf)
         self.settings.config_json.write_text(config.model_dump_json(indent=2), encoding="utf-8")
@@ -108,6 +115,49 @@ class ConfigManager:
             return self.settings.dhcpd_conf.read_text(encoding="utf-8")
         config = self.load_config()
         return generate_dhcpd_conf(config)
+
+    def export_config_json(self) -> str:
+        if self.settings.config_json.exists():
+            return self.settings.config_json.read_text(encoding="utf-8")
+        return self.load_config().model_dump_json(indent=2)
+
+    def export_bundle(self) -> bytes:
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("dhcpd.conf", self.export_dhcpd_conf())
+            archive.writestr("config.json", self.export_config_json())
+        return buffer.getvalue()
+
+    def import_bundle(self, zip_bytes: bytes) -> DhcpConfig:
+        conf_text, json_text = _extract_config_zip(zip_bytes)
+        return self.import_dhcpd_conf(conf_text, config_json=json_text)
+
+
+_ALLOWED_ZIP_MEMBERS = frozenset({"dhcpd.conf", "config.json"})
+
+
+def _extract_config_zip(zip_bytes: bytes) -> tuple[str, str | None]:
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    except zipfile.BadZipFile as exc:
+        raise ValueError("Invalid zip file") from exc
+
+    with archive:
+        members: dict[str, str] = {}
+        for info in archive.infolist():
+            name = info.filename.replace("\\", "/")
+            if info.is_dir() or name.endswith("/"):
+                raise ValueError("Zip archive must not contain directories")
+            if name not in _ALLOWED_ZIP_MEMBERS:
+                raise ValueError("Zip archive may only contain dhcpd.conf and config.json")
+            try:
+                members[name] = archive.read(info).decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise ValueError(f"{name} is not valid UTF-8") from exc
+
+    if "dhcpd.conf" not in members:
+        raise ValueError("Zip archive is missing dhcpd.conf")
+    return members["dhcpd.conf"], members.get("config.json")
 
 
 def reload_dhcp_service(settings: Settings) -> None:

@@ -24,9 +24,21 @@ function csrfFromCookie() {
   return match ? decodeURIComponent(match.slice('dui_csrf='.length)) : ''
 }
 
+async function errorDetail(response: Response): Promise<string> {
+  let detail = response.statusText
+  try {
+    const data = await response.json()
+    detail = data.detail || JSON.stringify(data)
+  } catch {
+    detail = await response.text()
+  }
+  return detail
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
-  if (init.body && !headers.has('Content-Type')) {
+  const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData
+  if (init.body && !headers.has('Content-Type') && !isFormData) {
     headers.set('Content-Type', 'application/json')
   }
   const token = csrfToken || csrfFromCookie()
@@ -41,14 +53,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   })
 
   if (!response.ok) {
-    let detail = response.statusText
-    try {
-      const data = await response.json()
-      detail = data.detail || JSON.stringify(data)
-    } catch {
-      detail = await response.text()
-    }
-    throw new Error(detail)
+    throw new Error(await errorDetail(response))
   }
 
   if (response.status === 204) {
@@ -130,13 +135,31 @@ export const api = {
   deleteHost(id: string) {
     return request<DhcpConfig>(`/api/config/hosts/${id}`, { method: 'DELETE' })
   },
-  exportConfig() {
-    return request<string>('/api/config/export')
+  exportDhcpdConf() {
+    return request<string>('/api/config/dhcpd-conf')
   },
-  importConfig(content: string) {
+  async exportConfig() {
+    const response = await fetch('/api/config/export', { credentials: 'include' })
+    if (!response.ok) {
+      throw new Error(await errorDetail(response))
+    }
+    return response.blob()
+  },
+  importConfig(content: string, configJson?: string) {
     return request<DhcpConfig>('/api/config/import', {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({
+        content,
+        ...(configJson?.trim() ? { config_json: configJson } : {}),
+      }),
+    })
+  },
+  importConfigZip(file: File) {
+    const body = new FormData()
+    body.append('file', file)
+    return request<DhcpConfig>('/api/config/import-zip', {
+      method: 'POST',
+      body,
     })
   },
   snapshots() {

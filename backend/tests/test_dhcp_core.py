@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import io
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
+from app.config import Settings
 from app.dhcp.conf_generator import generate_dhcpd_conf
 from app.dhcp.conf_parser import parse_dhcpd_conf
 from app.dhcp.leases import compute_subnet_usage, parse_leases
+from app.dhcp.manager import ConfigManager
 from app.dhcp.models import DhcpConfig, DhcpRange, DhcpSubnet
 from app.dhcp.validator import validate_dhcpd_conf
 
@@ -124,6 +129,69 @@ class DhcpCoreTests(unittest.TestCase):
 
         usage = compute_subnet_usage(DhcpConfig(subnets=[subnet]), [])
         self.assertEqual(usage[0].name, "LAN")
+
+
+class ConfigBundleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.settings = Settings(data_dir=Path(self.tmp.name))
+        self.manager = ConfigManager(self.settings)
+        self.validate = patch("app.dhcp.manager.validate_dhcpd_conf").start()
+        self.reload = patch("app.dhcp.manager.reload_dhcp_service").start()
+        self.addCleanup(patch.stopall)
+
+        self.config = DhcpConfig(
+            subnets=[
+                DhcpSubnet(
+                    id="s1",
+                    name="LAN",
+                    network="192.168.50.0",
+                    netmask="255.255.255.0",
+                    range=DhcpRange(start="192.168.50.100", end="192.168.50.200"),
+                )
+            ]
+        )
+        self.manager.save_config(self.config, apply=False)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_export_bundle_contains_conf_and_json(self) -> None:
+        bundle = self.manager.export_bundle()
+        with zipfile.ZipFile(io.BytesIO(bundle)) as archive:
+            self.assertEqual(set(archive.namelist()), {"dhcpd.conf", "config.json"})
+            json_text = archive.read("config.json").decode("utf-8")
+        restored = DhcpConfig.model_validate_json(json_text)
+        self.assertEqual(restored.subnets[0].name, "LAN")
+
+    def test_import_with_json_preserves_subnet_name(self) -> None:
+        conf = generate_dhcpd_conf(self.config)
+        imported = self.manager.import_dhcpd_conf(conf, config_json=self.config.model_dump_json())
+        self.assertEqual(imported.subnets[0].name, "LAN")
+        loaded = DhcpConfig.model_validate_json(self.settings.config_json.read_text(encoding="utf-8"))
+        self.assertEqual(loaded.subnets[0].name, "LAN")
+
+    def test_import_without_json_drops_subnet_name(self) -> None:
+        conf = generate_dhcpd_conf(self.config)
+        imported = self.manager.import_dhcpd_conf(conf)
+        self.assertIsNone(imported.subnets[0].name)
+
+    def test_import_bundle_round_trip_preserves_name(self) -> None:
+        bundle = self.manager.export_bundle()
+        other = tempfile.TemporaryDirectory()
+        self.addCleanup(other.cleanup)
+        other_manager = ConfigManager(Settings(data_dir=Path(other.name)))
+        imported = other_manager.import_bundle(bundle)
+        self.assertEqual(imported.subnets[0].name, "LAN")
+        self.assertTrue((Path(other.name) / "dhcpd.conf").exists())
+        self.assertTrue((Path(other.name) / "config.json").exists())
+
+    def test_import_bundle_missing_dhcpd_conf(self) -> None:
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as archive:
+            archive.writestr("config.json", self.config.model_dump_json())
+        with self.assertRaisesRegex(ValueError, "missing dhcpd.conf"):
+            self.manager.import_bundle(buffer.getvalue())
 
 
 if __name__ == "__main__":
