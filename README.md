@@ -18,10 +18,10 @@ DHCP UI (DUI) is a Dockerized home-network DHCP server with a web management int
 1. Copy the example users file and set your admin password hash:
 
 ```bash
-cp config/users.example.yaml config/users.yaml
+cp dui-data/users.example.yaml dui-data/users.yaml
 ```
 
-Default credentials on first install: `admin` / `admin` (change the hash in `config/users.yaml`).
+Default credentials on first install: `admin` / `dui` (change the credentials after logging in).
 
 2. Edit `docker-compose.yml` and set `DUI_INTERFACE` to your host network interface.
 
@@ -31,7 +31,7 @@ Default credentials on first install: `admin` / `admin` (change the hash in `con
 docker compose up -d --build
 ```
 
-4. Open the UI at `http://<host>:8080`
+4. Open the UI at `http://<host>:8067`
 
 ## Deployment notes
 
@@ -39,7 +39,7 @@ docker compose up -d --build
 - On Windows Docker Desktop, host networking behaves differently; build and run the stack on your Linux DHCP host for production use.
 - Disable any existing DHCP server on your router or host before starting DUI.
 - All persistent data is stored in the `dui-data` Docker volume under `/data`.
-- Mount `config/users.yaml` read-only for safer deployments; mount read-write if you want the admin UI to edit users.
+- Mount `dui-data/users.yaml` read-only for safer deployments; mount read-write if you want the admin UI to edit users.
 
 ## Volume layout
 

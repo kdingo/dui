@@ -1,6 +1,6 @@
 users:
   - username: admin
-    password_hash: "$2b$12$ohp6YNtSdChGAbL0l4NS3e2TaY0u7Z/Hj54THcrEgX7mayvFD2IUG"
+    password_hash: "$2a$12$9G9irMvAiaQO4FUtXdl/BOevLsDNI7021B9b1zcV5D4kiWTBFRd9W"
     role: admin
 session:
   ttl_hours: 24
