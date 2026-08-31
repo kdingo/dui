@@ -16,7 +16,7 @@ def _tail_file(path, tail: int) -> list[str]:
     for candidate in candidates:
         if candidate.exists():
             with candidate.open(encoding="utf-8", errors="replace") as handle:
-                return list(deque(handle, maxlen=tail))
+                return [line.rstrip("\r\n") for line in deque(handle, maxlen=tail)]
     return []
 
 
@@ -32,5 +32,9 @@ async def dhcp_logs(
         fallback = settings.logs_dir / ".." / ".." / "var" / "log" / "syslog"
         if fallback.exists():
             with fallback.open(encoding="utf-8", errors="replace") as handle:
-                lines = [line for line in deque(handle, maxlen=tail) if "dhcpd" in line.lower()]
+                lines = [
+                    line.rstrip("\r\n")
+                    for line in deque(handle, maxlen=tail)
+                    if "dhcpd" in line.lower()
+                ]
     return {"lines": lines, "path": str(settings.dhcpd_log)}

@@ -1,2 +1,5 @@
 #!/command/with-contenv bash
-exec dhcpd -d -f -cf /data/dhcpd.conf -lf /data/dhcpd.leases -pf /run/dhcpd.pid "${DUI_INTERFACE:-eth0}"
+mkdir -p /data/logs
+touch /data/logs/dhcpd.log
+# -d sends dhcpd messages to stderr (no syslog in this image). Persist them for the UI.
+exec dhcpd -d -f -cf /data/dhcpd.conf -lf /data/dhcpd.leases -pf /run/dhcpd.pid "${DUI_INTERFACE:-eth0}" >> /data/logs/dhcpd.log 2>&1

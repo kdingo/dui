@@ -6,6 +6,7 @@ TEMPLATE_DIR="/etc/dui/templates"
 HTTP_PORT="${DUI_HTTP_PORT:-8080}"
 
 mkdir -p "$DATA_DIR/logs" "$DATA_DIR/snapshots"
+touch "$DATA_DIR/logs/dhcpd.log"
 
 if [ ! -f "$DATA_DIR/dhcpd.conf" ]; then
   cp "$TEMPLATE_DIR/dhcpd.conf" "$DATA_DIR/dhcpd.conf"

@@ -201,30 +201,33 @@ def control_dhcp_service(settings: Settings, action: str) -> None:
     if action == "stop":
         subprocess.run(["pkill", "-x", "dhcpd"], check=False)
     elif action == "start":
-        subprocess.Popen(
-            [
-                "dhcpd",
-                "-f",
-                "-cf",
-                str(settings.dhcpd_conf),
-                "-lf",
-                str(settings.dhcpd_leases),
-                settings.interface,
-            ]
-        )
+        _start_dhcpd_process(settings)
     elif action == "restart":
         subprocess.run(["pkill", "-x", "dhcpd"], check=False)
+        _start_dhcpd_process(settings)
+
+
+def _start_dhcpd_process(settings: Settings) -> None:
+    settings.logs_dir.mkdir(parents=True, exist_ok=True)
+    log_handle = settings.dhcpd_log.open("a", encoding="utf-8")
+    try:
         subprocess.Popen(
             [
                 "dhcpd",
+                "-d",
                 "-f",
                 "-cf",
                 str(settings.dhcpd_conf),
                 "-lf",
                 str(settings.dhcpd_leases),
                 settings.interface,
-            ]
+            ],
+            stdout=log_handle,
+            stderr=log_handle,
+            start_new_session=True,
         )
+    finally:
+        log_handle.close()
 
 
 def stop_container() -> None:
