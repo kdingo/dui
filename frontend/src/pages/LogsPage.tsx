@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 
 export function LogsPage() {
   const [lines, setLines] = useState<string[]>([])
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [error, setError] = useState('')
+  const logRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let active = true
@@ -30,6 +31,11 @@ export function LogsPage() {
     }
   }, [autoRefresh])
 
+  useEffect(() => {
+    const el = logRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [lines])
+
   return (
     <div>
       <div className="actions" style={{ marginBottom: '1rem' }}>
@@ -40,7 +46,7 @@ export function LogsPage() {
         </label>
       </div>
       {error && <div className="error">{error}</div>}
-      <div className="log-viewer">{lines.join('\n') || 'No log lines yet.'}</div>
+      <div className="log-viewer" ref={logRef}>{lines.join('\n') || 'No log lines yet.'}</div>
     </div>
   )
 }
