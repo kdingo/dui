@@ -1,21 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../api/client'
 import type { SubnetUsage } from '../api/types'
+import { AutoRefreshControls } from '../components/AutoRefreshControls'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 export function DashboardPage() {
   const [subnets, setSubnets] = useState<SubnetUsage[]>([])
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    api
-      .dashboard()
-      .then((data) => setSubnets(data.subnets))
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load dashboard'))
-  }, [])
+  const { enabled, intervalMs, setEnabled, setIntervalMs, refreshNow } = useAutoRefresh(async () => {
+    try {
+      const data = await api.dashboard()
+      setSubnets(data.subnets)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard')
+    }
+  })
 
   return (
     <div>
-      <h2>Dashboard</h2>
+      <div className="actions page-header">
+        <h2>Dashboard</h2>
+        <AutoRefreshControls
+          enabled={enabled}
+          intervalMs={intervalMs}
+          onEnabledChange={setEnabled}
+          onIntervalChange={setIntervalMs}
+          onRefresh={refreshNow}
+        />
+      </div>
       <p className="muted">Subnet utilization across configured DHCP pools.</p>
       {error && <div className="error">{error}</div>}
       <div className="card-grid">

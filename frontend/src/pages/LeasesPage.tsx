@@ -1,18 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { api } from '../api/client'
 import type { Lease } from '../api/types'
+import { AutoRefreshControls } from '../components/AutoRefreshControls'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 export function LeasesPage() {
   const [leases, setLeases] = useState<Lease[]>([])
   const [subnet, setSubnet] = useState<string>('all')
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    api
-      .leases()
-      .then((data) => setLeases(data.leases))
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load leases'))
-  }, [])
+  const { enabled, intervalMs, setEnabled, setIntervalMs, refreshNow } = useAutoRefresh(async () => {
+    try {
+      const data = await api.leases()
+      setLeases(data.leases)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load leases')
+    }
+  })
 
   const subnets = useMemo(() => {
     const values = new Set<string>()
@@ -26,7 +31,16 @@ export function LeasesPage() {
 
   return (
     <div>
-      <h2>Leases</h2>
+      <div className="actions page-header">
+        <h2>Leases</h2>
+        <AutoRefreshControls
+          enabled={enabled}
+          intervalMs={intervalMs}
+          onEnabledChange={setEnabled}
+          onIntervalChange={setIntervalMs}
+          onRefresh={refreshNow}
+        />
+      </div>
       <div className="tabs">
         <button className={subnet === 'all' ? 'active' : ''} onClick={() => setSubnet('all')}>
           All
