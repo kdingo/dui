@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
 
@@ -29,7 +30,7 @@ async def dhcp_logs(
     lines = _tail_file(settings.dhcpd_log, tail)
     if not lines:
         # Debian default when file logging is unavailable
-        fallback = settings.logs_dir / ".." / ".." / "var" / "log" / "syslog"
+        fallback = Path("/var/log/syslog")
         if fallback.exists():
             with fallback.open(encoding="utf-8", errors="replace") as handle:
                 lines = [

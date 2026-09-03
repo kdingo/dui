@@ -134,7 +134,14 @@ class DhcpCoreTests(unittest.TestCase):
 class ConfigBundleTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
-        self.settings = Settings(data_dir=Path(self.tmp.name))
+        root = Path(self.tmp.name)
+        data_dir = root / "data"
+        data_dir.mkdir()
+        self.settings = Settings(
+            data_dir=data_dir,
+            logs_dir=root / "logs",
+            snapshots_dir=root / "snapshots",
+        )
         self.manager = ConfigManager(self.settings)
         self.validate = patch("app.dhcp.manager.validate_dhcpd_conf").start()
         self.reload = patch("app.dhcp.manager.reload_dhcp_service").start()
@@ -179,9 +186,16 @@ class ConfigBundleTests(unittest.TestCase):
         bundle = self.manager.export_bundle()
         other = tempfile.TemporaryDirectory()
         self.addCleanup(other.cleanup)
-        other_root = Path(other.name)
+        other_root = Path(other.name) / "data"
+        other_root.mkdir()
         (other_root / "stale.txt").write_text("remove me", encoding="utf-8")
-        other_manager = ConfigManager(Settings(data_dir=other_root))
+        other_manager = ConfigManager(
+            Settings(
+                data_dir=other_root,
+                logs_dir=Path(other.name) / "logs",
+                snapshots_dir=Path(other.name) / "snapshots",
+            )
+        )
         imported = other_manager.import_bundle(bundle)
         self.assertEqual(imported.subnets[0].name, "LAN")
         self.assertTrue((other_root / "dhcpd.conf").exists())

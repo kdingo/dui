@@ -2,11 +2,23 @@
 set -e
 
 DATA_DIR="${DUI_DATA_DIR:-/data}"
+LOGS_DIR="${DUI_LOGS_DIR:-/var/log/dui}"
+SNAPSHOTS_DIR="${DUI_SNAPSHOTS_DIR:-/var/lib/dui/snapshots}"
 TEMPLATE_DIR="/etc/dui/templates"
 HTTP_PORT="${DUI_HTTP_PORT:-8080}"
 
-mkdir -p "$DATA_DIR/logs" "$DATA_DIR/snapshots"
-touch "$DATA_DIR/logs/dhcpd.log"
+mkdir -p "$DATA_DIR" "$LOGS_DIR" "$SNAPSHOTS_DIR"
+
+if [ -d "$DATA_DIR/logs" ]; then
+  cp -a "$DATA_DIR/logs/." "$LOGS_DIR/"
+  rm -rf "$DATA_DIR/logs"
+fi
+if [ -d "$DATA_DIR/snapshots" ]; then
+  cp -a "$DATA_DIR/snapshots/." "$SNAPSHOTS_DIR/"
+  rm -rf "$DATA_DIR/snapshots"
+fi
+
+touch "$LOGS_DIR/dhcpd.log"
 
 if [ ! -f "$DATA_DIR/dhcpd.conf" ]; then
   cp "$TEMPLATE_DIR/dhcpd.conf" "$DATA_DIR/dhcpd.conf"
@@ -29,15 +41,15 @@ if [ ! -f "$DATA_DIR/users.yaml" ]; then
 fi
 
 if [ ! -f "$DATA_DIR/config.json" ]; then
-  python3 - <<'PY'
-import json
+  DUI_DATA_DIR="$DATA_DIR" python3 - <<'PY'
 from pathlib import Path
+import os
 import sys
 sys.path.insert(0, "/app/backend")
 from app.dhcp.conf_parser import parse_dhcpd_conf
 from app.dhcp.models import DhcpConfig
 
-data_dir = Path("/data")
+data_dir = Path(os.environ.get("DUI_DATA_DIR", "/data"))
 conf = data_dir / "dhcpd.conf"
 if conf.exists():
     config = parse_dhcpd_conf(conf.read_text())
@@ -54,6 +66,9 @@ mkdir -p /etc/cont-env
 printf '%s' "${DUI_INTERFACE:-eth0}" > /etc/cont-env/DUI_INTERFACE
 printf '%s' "${HTTP_PORT}" > /etc/cont-env/DUI_HTTP_PORT
 printf '%s' "${DUI_SERVER_NAME:-DHCP UI (DUI)}" > /etc/cont-env/DUI_SERVER_NAME
+printf '%s' "$DATA_DIR" > /etc/cont-env/DUI_DATA_DIR
+printf '%s' "$LOGS_DIR" > /etc/cont-env/DUI_LOGS_DIR
+printf '%s' "$SNAPSHOTS_DIR" > /etc/cont-env/DUI_SNAPSHOTS_DIR
 
 chmod 644 "$DATA_DIR/dhcpd.conf" "$DATA_DIR/dhcpd.leases" 2>/dev/null || true
 

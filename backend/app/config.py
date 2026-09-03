@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DUI_")
 
     data_dir: Path = Path("/data")
+    logs_dir: Path = Path("/var/log/dui")
+    snapshots_dir: Path = Path("/var/lib/dui/snapshots")
     interface: str = "eth0"
     http_port: int = 8080
     server_name: str = "DHCP UI (DUI)"
@@ -39,14 +41,6 @@ class Settings(BaseSettings):
     @property
     def session_secret_file(self) -> Path:
         return self.data_dir / "session.secret"
-
-    @property
-    def snapshots_dir(self) -> Path:
-        return self.data_dir / "snapshots"
-
-    @property
-    def logs_dir(self) -> Path:
-        return self.data_dir / "logs"
 
     @property
     def dhcpd_log(self) -> Path:

@@ -1,5 +1,7 @@
 #!/command/with-contenv bash
-mkdir -p /data/logs
-touch /data/logs/dhcpd.log
+DATA_DIR="${DUI_DATA_DIR:-/data}"
+LOGS_DIR="${DUI_LOGS_DIR:-/var/log/dui}"
+mkdir -p "$LOGS_DIR"
+touch "$LOGS_DIR/dhcpd.log"
 # -d sends dhcpd messages to stderr (no syslog in this image). Persist them for the UI.
-exec dhcpd -d -f -cf /data/dhcpd.conf -lf /data/dhcpd.leases -pf /run/dhcpd.pid "${DUI_INTERFACE:-eth0}" >> /data/logs/dhcpd.log 2>&1
+exec dhcpd -d -f -cf "$DATA_DIR/dhcpd.conf" -lf "$DATA_DIR/dhcpd.leases" -pf /run/dhcpd.pid "${DUI_INTERFACE:-eth0}" >> "$LOGS_DIR/dhcpd.log" 2>&1
