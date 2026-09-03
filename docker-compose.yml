@@ -15,7 +15,6 @@ services:
     environment:
       DUI_INTERFACE: eth0
       DUI_HTTP_PORT: 8067
-      DUI_SERVER_NAME: "DHCP UI (DUI)"
     restart: unless-stopped
 
 volumes:

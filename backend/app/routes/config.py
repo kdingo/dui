@@ -190,7 +190,7 @@ async def update_options(
 
 
 @router.get("/export")
-async def export_config(_: dict[str, str] = Depends(get_current_user)) -> Response:
+async def export_config(_: dict[str, str] = Depends(require_admin)) -> Response:
     content = ConfigManager().export_bundle()
     return Response(
         content=content,
@@ -200,7 +200,7 @@ async def export_config(_: dict[str, str] = Depends(get_current_user)) -> Respon
 
 
 @router.get("/dhcpd-conf")
-async def get_dhcpd_conf(_: dict[str, str] = Depends(get_current_user)) -> Response:
+async def get_dhcpd_conf(_: dict[str, str] = Depends(require_admin)) -> Response:
     content = ConfigManager().export_dhcpd_conf()
     return Response(content=content, media_type="text/plain")
 

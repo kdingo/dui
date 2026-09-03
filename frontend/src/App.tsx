@@ -24,6 +24,13 @@ function ProtectedRoute({ user, children }: { user: User | null; children: React
   return <>{children}</>
 }
 
+function AdminRoute({ user, children }: { user: User | null; children: React.ReactNode }) {
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />
+  }
+  return <>{children}</>
+}
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -62,10 +69,17 @@ export default function App() {
           <Route path="configure/networks" element={<NetworksPage />} />
           <Route path="configure/clients" element={<ClientsPage />} />
           <Route path="configure/options" element={<OptionsPage />} />
-          <Route path="configure/import-export" element={<ImportExportPage />} />
           <Route path="configure/snapshots" element={<SnapshotsPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="admin/users" element={<UsersPage />} />
+          <Route
+            path="admin/import-export"
+            element={
+              <AdminRoute user={user}>
+                <ImportExportPage />
+              </AdminRoute>
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

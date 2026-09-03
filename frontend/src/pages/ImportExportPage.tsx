@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import { useAuth } from '../auth/AuthContext'
 
 type ImportMethod = 'zip' | 'paste'
 
 export function ImportExportPage() {
-  const { isAdmin } = useAuth()
   const [method, setMethod] = useState<ImportMethod>('zip')
   const [zipFile, setZipFile] = useState<File | null>(null)
   const [content, setContent] = useState('')
@@ -40,7 +38,6 @@ export function ImportExportPage() {
   }
 
   async function handleImport() {
-    if (!isAdmin) return
     try {
       if (method === 'zip') {
         if (!zipFile) {
@@ -60,7 +57,7 @@ export function ImportExportPage() {
 
   return (
     <div>
-      <h2>dhcpd.conf</h2>
+      <h2>Import/Export</h2>
       {error && <div className="error">{error}</div>}
       {message && <p>{message}</p>}
       <div className="panel">
@@ -68,11 +65,9 @@ export function ImportExportPage() {
           <button className="secondary" onClick={handleExport}>
             Download zip
           </button>
-          {isAdmin && (
-            <button className="primary" onClick={handleImport}>
-              Import and apply
-            </button>
-          )}
+          <button className="primary" onClick={handleImport}>
+            Import and apply
+          </button>
         </div>
         <div className="tabs">
           <button
@@ -97,7 +92,6 @@ export function ImportExportPage() {
               type="file"
               accept=".zip,application/zip"
               onChange={(e) => setZipFile(e.target.files?.[0] ?? null)}
-              disabled={!isAdmin}
             />
             <span className="muted">
               Contains the entire /data directory (config, leases, users, snapshots, logs).
@@ -112,7 +106,6 @@ export function ImportExportPage() {
                 onChange={(e) => setContent(e.target.value)}
                 rows={16}
                 style={{ width: '100%', fontFamily: 'monospace' }}
-                readOnly={!isAdmin}
               />
             </label>
           </div>

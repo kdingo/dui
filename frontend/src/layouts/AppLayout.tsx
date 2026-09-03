@@ -29,8 +29,7 @@ export function AppLayout({ serverName }: AppLayoutProps) {
           <span className="nav-group-title">Configure</span>
           <NavLink to="/configure/networks">Networks</NavLink>
           <NavLink to="/configure/clients">DHCP clients</NavLink>
-          <NavLink to="/configure/options">Options</NavLink>
-          <NavLink to="/configure/import-export">dhcpd.conf</NavLink>
+          <NavLink to="/configure/options">Server Options</NavLink>
           <NavLink to="/configure/snapshots">Config snapshots</NavLink>
           {isAdmin && (
             <>
@@ -39,6 +38,7 @@ export function AppLayout({ serverName }: AppLayoutProps) {
                 Server admin
               </NavLink>
               <NavLink to="/admin/users">Users</NavLink>
+              <NavLink to="/admin/import-export">Import/Export</NavLink>
             </>
           )}
         </nav>
