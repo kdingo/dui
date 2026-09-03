@@ -156,41 +156,53 @@ class ConfigBundleTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def test_export_bundle_contains_conf_and_json(self) -> None:
+    def test_export_bundle_contains_data_dir_files(self) -> None:
+        leases = self.settings.dhcpd_leases
+        leases.write_text(SAMPLE_LEASES, encoding="utf-8")
+        (self.settings.data_dir / "users.yaml").write_text("users: []\n", encoding="utf-8")
         bundle = self.manager.export_bundle()
         with zipfile.ZipFile(io.BytesIO(bundle)) as archive:
-            self.assertEqual(set(archive.namelist()), {"dhcpd.conf", "config.json"})
-            json_text = archive.read("config.json").decode("utf-8")
-        restored = DhcpConfig.model_validate_json(json_text)
-        self.assertEqual(restored.subnets[0].name, "LAN")
-
-    def test_import_with_json_preserves_subnet_name(self) -> None:
-        conf = generate_dhcpd_conf(self.config)
-        imported = self.manager.import_dhcpd_conf(conf, config_json=self.config.model_dump_json())
-        self.assertEqual(imported.subnets[0].name, "LAN")
-        loaded = DhcpConfig.model_validate_json(self.settings.config_json.read_text(encoding="utf-8"))
-        self.assertEqual(loaded.subnets[0].name, "LAN")
+            names = set(archive.namelist())
+        self.assertIn("dhcpd.conf", names)
+        self.assertIn("config.json", names)
+        self.assertIn("dhcpd.leases", names)
+        self.assertIn("users.yaml", names)
 
     def test_import_without_json_drops_subnet_name(self) -> None:
         conf = generate_dhcpd_conf(self.config)
         imported = self.manager.import_dhcpd_conf(conf)
         self.assertIsNone(imported.subnets[0].name)
 
-    def test_import_bundle_round_trip_preserves_name(self) -> None:
+    def test_import_bundle_round_trip_restores_extra_files(self) -> None:
+        (self.settings.data_dir / "users.yaml").write_text("users: []\n", encoding="utf-8")
+        self.settings.dhcpd_leases.write_text(SAMPLE_LEASES, encoding="utf-8")
         bundle = self.manager.export_bundle()
         other = tempfile.TemporaryDirectory()
         self.addCleanup(other.cleanup)
-        other_manager = ConfigManager(Settings(data_dir=Path(other.name)))
+        other_root = Path(other.name)
+        (other_root / "stale.txt").write_text("remove me", encoding="utf-8")
+        other_manager = ConfigManager(Settings(data_dir=other_root))
         imported = other_manager.import_bundle(bundle)
         self.assertEqual(imported.subnets[0].name, "LAN")
-        self.assertTrue((Path(other.name) / "dhcpd.conf").exists())
-        self.assertTrue((Path(other.name) / "config.json").exists())
+        self.assertTrue((other_root / "dhcpd.conf").exists())
+        self.assertTrue((other_root / "config.json").exists())
+        self.assertEqual((other_root / "users.yaml").read_text(encoding="utf-8"), "users: []\n")
+        self.assertEqual((other_root / "dhcpd.leases").read_text(encoding="utf-8"), SAMPLE_LEASES)
+        self.assertFalse((other_root / "stale.txt").exists())
 
     def test_import_bundle_missing_dhcpd_conf(self) -> None:
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w") as archive:
             archive.writestr("config.json", self.config.model_dump_json())
         with self.assertRaisesRegex(ValueError, "missing dhcpd.conf"):
+            self.manager.import_bundle(buffer.getvalue())
+
+    def test_import_bundle_rejects_zip_slip(self) -> None:
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as archive:
+            archive.writestr("../outside.txt", "nope")
+            archive.writestr("dhcpd.conf", generate_dhcpd_conf(self.config))
+        with self.assertRaisesRegex(ValueError, "Unsafe zip member path"):
             self.manager.import_bundle(buffer.getvalue())
 
 

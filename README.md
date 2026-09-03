@@ -8,38 +8,33 @@ DHCP UI (DUI) is a Dockerized home-network DHCP server with a web management int
 - Lease viewer grouped by subnet
 - Live DHCP log viewer
 - Configure networks, fixed clients, and global options
-- Import/export `dhcpd.conf` and `config.json` as a zip (preserves network names)
+- Import/export the entire `/data` directory as a zip
+- Paste-import `dhcpd.conf`
 - Persistent config snapshots
 - File-based user authentication with bcrypt hashes
 - Server admin: manage users, control `dhcpd`, restart/stop container
 
 ## Quick start
 
-1. Copy the example users file and set your admin password hash:
-
-```bash
-cp dui-data/users.example.yaml dui-data/users.yaml
-```
-
 Default credentials on first install: `admin` / `dui` (change the credentials after logging in).
 
-2. Edit `docker-compose.yml` and set `DUI_INTERFACE` to your host network interface.
+1. Edit `docker-compose.yml` and set `DUI_INTERFACE` to your host network interface.
 
-3. Build and start:
+2. Build and start:
 
 ```bash
 docker compose up -d --build
 ```
 
-4. Open the UI at `http://<host>:8067`
+3. Open the UI at `http://<host>:8067`
 
 ## Deployment notes
 
 - Uses `network_mode: host` so DHCP broadcasts work on Linux.
 - On Windows Docker Desktop, host networking behaves differently; build and run the stack on your Linux DHCP host for production use.
 - Disable any existing DHCP server on your router or host before starting DUI.
-- All persistent data is stored in the `dui-data` Docker volume under `/data`.
-- Mount `dui-data/users.yaml` read-only for safer deployments; mount read-write if you want the admin UI to edit users.
+- All persistent data is stored in the named Docker volume `dui-data` mounted at `/data`. Generated files stay in the volume, not on the host filesystem.
+- `users.yaml` is copied from the image template on first start. Later image rebuilds do not overwrite an existing volume file.
 
 ## Volume layout
 

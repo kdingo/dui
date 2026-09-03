@@ -145,13 +145,10 @@ export const api = {
     }
     return response.blob()
   },
-  importConfig(content: string, configJson?: string) {
+  importConfig(content: string) {
     return request<DhcpConfig>('/api/config/import', {
       method: 'POST',
-      body: JSON.stringify({
-        content,
-        ...(configJson?.trim() ? { config_json: configJson } : {}),
-      }),
+      body: JSON.stringify({ content }),
     })
   },
   importConfigZip(file: File) {

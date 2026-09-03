@@ -2,6 +2,7 @@ services:
   dui:
     build: .
     container_name: dui
+    # for windows hosts to test, comment line below and uncomment ports section
     network_mode: host
     # ports:
     #   - 8067:8067/tcp
@@ -10,7 +11,7 @@ services:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      - ./dui-data:/data
+      - dui-data:/data
     environment:
       DUI_INTERFACE: eth0
       DUI_HTTP_PORT: 8067

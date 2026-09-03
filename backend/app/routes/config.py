@@ -195,7 +195,7 @@ async def export_config(_: dict[str, str] = Depends(get_current_user)) -> Respon
     return Response(
         content=content,
         media_type="application/zip",
-        headers={"Content-Disposition": 'attachment; filename="dui-dhcp-config.zip"'},
+        headers={"Content-Disposition": 'attachment; filename="dui-data.zip"'},
     )
 
 
@@ -207,7 +207,6 @@ async def get_dhcpd_conf(_: dict[str, str] = Depends(get_current_user)) -> Respo
 
 class ImportPayload(BaseModel):
     content: str
-    config_json: str | None = None
 
 
 @router.post("/import")
@@ -218,7 +217,7 @@ async def import_config(
 ) -> DhcpConfig:
     manager = ConfigManager()
     try:
-        return manager.import_dhcpd_conf(payload.content, config_json=payload.config_json)
+        return manager.import_dhcpd_conf(payload.content)
     except DhcpValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:

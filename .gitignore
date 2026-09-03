@@ -1,6 +1,4 @@
 # Secrets / local config
-dui-data/*
-!dui-data/users.example.yaml
 .env
 .env.*
 

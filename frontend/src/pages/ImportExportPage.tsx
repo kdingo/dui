@@ -9,17 +9,16 @@ export function ImportExportPage() {
   const [method, setMethod] = useState<ImportMethod>('zip')
   const [zipFile, setZipFile] = useState<File | null>(null)
   const [content, setContent] = useState('')
-  const [jsonContent, setJsonContent] = useState('')
   const [pasteLoaded, setPasteLoaded] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
     if (method !== 'paste' || pasteLoaded) return
-    Promise.all([api.exportDhcpdConf(), api.getConfig()])
-      .then(([conf, config]) => {
+    api
+      .exportDhcpdConf()
+      .then((conf) => {
         setContent(conf)
-        setJsonContent(JSON.stringify(config, null, 2))
         setPasteLoaded(true)
       })
       .catch((err) => setError(err.message))
@@ -31,7 +30,7 @@ export function ImportExportPage() {
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = 'dui-dhcp-config.zip'
+      anchor.download = 'dui-data.zip'
       anchor.click()
       URL.revokeObjectURL(url)
       setError('')
@@ -50,7 +49,7 @@ export function ImportExportPage() {
         }
         await api.importConfigZip(zipFile)
       } else {
-        await api.importConfig(content, jsonContent)
+        await api.importConfig(content)
       }
       setMessage('Configuration imported and applied.')
       setError('')
@@ -100,7 +99,9 @@ export function ImportExportPage() {
               onChange={(e) => setZipFile(e.target.files?.[0] ?? null)}
               disabled={!isAdmin}
             />
-            <span className="muted">Contains dhcpd.conf and config.json so network names are preserved.</span>
+            <span className="muted">
+              Contains the entire /data directory (config, leases, users, snapshots, logs).
+            </span>
           </label>
         ) : (
           <div className="form-grid" style={{ maxWidth: 'none' }}>
@@ -109,16 +110,6 @@ export function ImportExportPage() {
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                rows={16}
-                style={{ width: '100%', fontFamily: 'monospace' }}
-                readOnly={!isAdmin}
-              />
-            </label>
-            <label>
-              config.json (optional)
-              <textarea
-                value={jsonContent}
-                onChange={(e) => setJsonContent(e.target.value)}
                 rows={16}
                 style={{ width: '100%', fontFamily: 'monospace' }}
                 readOnly={!isAdmin}
