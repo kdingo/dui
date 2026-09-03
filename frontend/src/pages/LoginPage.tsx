@@ -4,7 +4,7 @@ import { api, setCsrfToken } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
 export function LoginPage() {
-  const [username, setUsername] = useState('admin')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const navigate = useNavigate()
@@ -31,7 +31,12 @@ export function LoginPage() {
         <form className="form-grid" onSubmit={handleSubmit}>
           <label>
             Username
-            <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="admin"
+              autoComplete="username"
+            />
           </label>
           <label>
             Password
