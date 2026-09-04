@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AfterValidator, BaseModel, Field, field_validator
+
+from .cidr import normalize_ipv4_cidr
+
+IPv4Cidr = Annotated[str, AfterValidator(normalize_ipv4_cidr)]
 
 
 class DhcpRange(BaseModel):
@@ -12,8 +16,7 @@ class DhcpRange(BaseModel):
 
 class DhcpSubnet(BaseModel):
     id: str
-    network: str
-    netmask: str
+    network: IPv4Cidr
     name: str | None = None
     range: DhcpRange | None = None
     options: dict[str, Any] = Field(default_factory=dict)
@@ -56,8 +59,7 @@ class DhcpConfig(BaseModel):
             subnets=[
                 DhcpSubnet(
                     id="subnet-1",
-                    network="192.168.1.0",
-                    netmask="255.255.255.0",
+                    network="192.168.1.0/24",
                     range=DhcpRange(start="192.168.1.100", end="192.168.1.200"),
                     options={"routers": ["192.168.1.1"]},
                 )
@@ -80,7 +82,6 @@ class Lease(BaseModel):
 class SubnetUsage(BaseModel):
     id: str
     network: str
-    netmask: str
     name: str | None = None
     range_start: str | None = None
     range_end: str | None = None

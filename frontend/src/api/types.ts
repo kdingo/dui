@@ -6,7 +6,6 @@ export interface User {
 export interface SubnetUsage {
   id: string
   network: string
-  netmask: string
   name: string | null
   range_start: string | null
   range_end: string | null
@@ -35,7 +34,6 @@ export interface DhcpRange {
 export interface DhcpSubnet {
   id: string
   network: string
-  netmask: string
   name: string | null
   range: DhcpRange | null
   options: Record<string, unknown>

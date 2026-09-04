@@ -1,12 +1,13 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
 import type { DhcpConfig, DhcpSubnet } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { CIDR_PREFIXES, ipv4NetworkPreview, splitCidr } from '../lib/ipv4'
 
 const emptySubnet = {
   name: '',
-  network: '',
-  netmask: '255.255.255.0',
+  address: '',
+  prefix: 24,
   range: { start: '', end: '' },
   options: { routers: [''] },
 }
@@ -33,6 +34,11 @@ export function NetworksPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
+  const preview = useMemo(
+    () => ipv4NetworkPreview(form.address, form.prefix),
+    [form.address, form.prefix],
+  )
+
   useEffect(() => {
     api.getConfig().then(setConfig).catch((err) => setError(err.message))
   }, [])
@@ -47,10 +53,14 @@ export function NetworksPage() {
     if (!isAdmin) return
     setError('')
     setMessage('')
+    const subnet = ipv4NetworkPreview(form.address, form.prefix)
+    if (!subnet) {
+      setError('Enter a valid IPv4 network address.')
+      return
+    }
     const payload = {
       name: form.name.trim() || null,
-      network: form.network,
-      netmask: form.netmask,
+      network: subnet.cidr,
       range: form.range.start && form.range.end ? form.range : null,
       options: {
         routers: routersList(form.options.routers).slice(0, 1),
@@ -69,10 +79,11 @@ export function NetworksPage() {
   function startEdit(subnet: DhcpSubnet) {
     setEditingId(subnet.id)
     const routers = routersList(subnet.options?.routers)
+    const parsed = splitCidr(subnet.network)
     setForm({
       name: subnet.name || '',
-      network: subnet.network,
-      netmask: subnet.netmask,
+      address: parsed?.address || '',
+      prefix: parsed?.prefix ?? 24,
       range: subnet.range || { start: '', end: '' },
       options: { routers: routers.length ? routers : [''] },
     })
@@ -95,7 +106,6 @@ export function NetworksPage() {
             <tr>
               <th>Name</th>
               <th>Network</th>
-              <th>Netmask</th>
               <th>Range</th>
               <th>Router</th>
               {isAdmin && <th>Actions</th>}
@@ -106,7 +116,6 @@ export function NetworksPage() {
               <tr key={subnet.id}>
                 <td>{subnet.name || '—'}</td>
                 <td>{subnet.network}</td>
-                <td>{subnet.netmask}</td>
                 <td>
                   {subnet.range ? `${subnet.range.start} - ${subnet.range.end}` : '—'}
                 </td>
@@ -135,12 +144,35 @@ export function NetworksPage() {
           </label>
           <label>
             Network
-            <input value={form.network} onChange={(e) => setForm({ ...form, network: e.target.value })} required />
+            <input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="192.168.1.0"
+              required
+            />
           </label>
           <label>
-            Netmask
-            <input value={form.netmask} onChange={(e) => setForm({ ...form, netmask: e.target.value })} required />
+            CIDR
+            <select
+              value={form.prefix}
+              onChange={(e) => setForm({ ...form, prefix: Number(e.target.value) })}
+            >
+              {CIDR_PREFIXES.map((prefix) => (
+                <option key={prefix} value={prefix}>
+                  /{prefix}
+                </option>
+              ))}
+            </select>
           </label>
+          {preview && (
+            <p className="muted">
+              Netmask {preview.netmask}
+              <br />
+              Range {preview.network} – {preview.broadcast}
+              <br />
+              {preview.size.toLocaleString()} IPs
+            </p>
+          )}
           <label>
             Range start
             <input

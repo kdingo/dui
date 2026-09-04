@@ -55,7 +55,7 @@ def _match_subnet(ip: str, config: DhcpConfig) -> tuple[str | None, str | None]:
     except ValueError:
         return None, None
     for subnet in config.subnets:
-        network = ipaddress.ip_network(f"{subnet.network}/{subnet.netmask}", strict=False)
+        network = ipaddress.ip_network(subnet.network, strict=False)
         if addr in network:
             return subnet.id, subnet.network
     return None, None
@@ -78,7 +78,6 @@ def compute_subnet_usage(config: DhcpConfig, leases: list[Lease]) -> list[Subnet
                 SubnetUsage(
                     id=subnet.id,
                     network=subnet.network,
-                    netmask=subnet.netmask,
                     name=subnet.name,
                     total=0,
                     used=0,
@@ -107,7 +106,6 @@ def compute_subnet_usage(config: DhcpConfig, leases: list[Lease]) -> list[Subnet
             SubnetUsage(
                 id=subnet.id,
                 network=subnet.network,
-                netmask=subnet.netmask,
                 name=subnet.name,
                 range_start=subnet.range.start,
                 range_end=subnet.range.end,

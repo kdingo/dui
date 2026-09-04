@@ -4,7 +4,8 @@ import json
 import re
 from typing import Any
 
-from .models import DhcpConfig, DhcpHost, DhcpRange, DhcpSubnet
+from .cidr import cidr_to_dhcpd
+from .models import DhcpConfig
 
 GLOBAL_DIRECTIVES = {
     "default-lease-time",
@@ -73,7 +74,8 @@ def generate_dhcpd_conf(config: DhcpConfig) -> str:
         _write_global_directives(lines, config.global_options)
 
     for subnet in config.subnets:
-        lines.extend(["", f"subnet {subnet.network} netmask {subnet.netmask} {{"])
+        addr, mask = cidr_to_dhcpd(subnet.network)
+        lines.extend(["", f"subnet {addr} netmask {mask} {{"])
         if subnet.range:
             lines.append(f"  range {subnet.range.start} {subnet.range.end};")
         _write_options(lines, subnet.options)

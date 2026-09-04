@@ -36,11 +36,11 @@ export function DashboardPage() {
         {subnets.map((subnet) => (
           <div className="card" key={subnet.id}>
             <h3>
-              {subnet.name || `${subnet.network}/${subnet.netmask}`}
+              {subnet.name || subnet.network}
             </h3>
             {subnet.name && (
               <p className="muted">
-                {subnet.network}/{subnet.netmask}
+                {subnet.network}
               </p>
             )}
             <p className="muted">

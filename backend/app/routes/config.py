@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from ..auth.deps import get_current_user, require_admin, verify_csrf
 from ..dhcp.manager import ConfigManager, DhcpValidationError
-from ..dhcp.models import DhcpConfig, DhcpHost, DhcpRange, DhcpSubnet
+from ..dhcp.models import DhcpConfig, DhcpHost, DhcpRange, DhcpSubnet, IPv4Cidr
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 
@@ -45,8 +45,7 @@ async def apply_config(
 
 
 class SubnetPayload(BaseModel):
-    network: str
-    netmask: str
+    network: IPv4Cidr
     name: str | None = None
     range: DhcpRange | None = None
     options: dict = Field(default_factory=dict)

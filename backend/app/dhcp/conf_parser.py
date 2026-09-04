@@ -4,6 +4,7 @@ import re
 import uuid
 from typing import Any
 
+from .cidr import to_cidr
 from .models import DhcpConfig, DhcpHost, DhcpRange, DhcpSubnet
 
 
@@ -92,8 +93,7 @@ def parse_dhcpd_conf(content: str) -> DhcpConfig:
             subnets.append(
                 DhcpSubnet(
                     id=f"subnet-{uuid.uuid4().hex[:8]}",
-                    network=header.group(1),
-                    netmask=header.group(2),
+                    network=to_cidr(header.group(1), header.group(2)),
                     range=range_match,
                     options=subnet_options,
                 )

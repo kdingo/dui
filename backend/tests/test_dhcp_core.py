@@ -7,6 +7,8 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+from pydantic import ValidationError
+
 from app.config import Settings
 from app.dhcp.conf_generator import generate_dhcpd_conf
 from app.dhcp.conf_parser import parse_dhcpd_conf
@@ -35,7 +37,7 @@ host printer {
 SAMPLE_LEASES = """
 lease 192.168.1.101 {
   starts 3 2026/08/30 10:00:00;
-  ends 4 2026/08/31 10:00:00;
+  ends 4 2099/08/31 10:00:00;
   binding state active;
   hardware ethernet 11:22:33:44:55:66;
   client-hostname "laptop";
@@ -49,7 +51,7 @@ class DhcpCoreTests(unittest.TestCase):
         generated = generate_dhcpd_conf(parsed)
         reparsed = parse_dhcpd_conf(generated)
         self.assertEqual(len(reparsed.subnets), 1)
-        self.assertEqual(reparsed.subnets[0].network, "192.168.1.0")
+        self.assertEqual(reparsed.subnets[0].network, "192.168.1.0/24")
         self.assertEqual(len(reparsed.hosts), 1)
         self.assertEqual(reparsed.hosts[0].fixed_address, "192.168.1.50")
 
@@ -58,6 +60,7 @@ class DhcpCoreTests(unittest.TestCase):
         leases = parse_leases(SAMPLE_LEASES, config)
         self.assertEqual(len(leases), 1)
         self.assertEqual(leases[0].ip, "192.168.1.101")
+        self.assertEqual(leases[0].subnet_network, "192.168.1.0/24")
         usage = compute_subnet_usage(config, leases)
         self.assertEqual(usage[0].used, 1)
         self.assertGreater(usage[0].total, 0)
@@ -95,8 +98,7 @@ class DhcpCoreTests(unittest.TestCase):
             subnets=[
                 DhcpSubnet(
                     id="s1",
-                    network="192.168.50.0",
-                    netmask="255.255.255.0",
+                    network="192.168.50.0/24",
                     range=DhcpRange(start="192.168.50.100", end="192.168.50.200"),
                     options={"routers": ["192.168.50.1"]},
                 )
@@ -115,13 +117,12 @@ class DhcpCoreTests(unittest.TestCase):
         subnet = DhcpSubnet(
             id="s1",
             name="LAN",
-            network="192.168.50.0",
-            netmask="255.255.255.0",
+            network="192.168.50.0/24",
             range=DhcpRange(start="192.168.50.100", end="192.168.50.200"),
         )
         restored = DhcpSubnet.model_validate_json(subnet.model_dump_json())
         self.assertEqual(restored.name, "LAN")
-        self.assertIsNone(DhcpSubnet.model_validate({"id": "s2", "network": "10.0.0.0", "netmask": "255.255.255.0", "name": "  "}).name)
+        self.assertIsNone(DhcpSubnet.model_validate({"id": "s2", "network": "10.0.0.0/24", "name": "  "}).name)
 
         conf = generate_dhcpd_conf(DhcpConfig(subnets=[subnet]))
         self.assertIn("subnet 192.168.50.0 netmask 255.255.255.0 {", conf)
@@ -129,6 +130,18 @@ class DhcpCoreTests(unittest.TestCase):
 
         usage = compute_subnet_usage(DhcpConfig(subnets=[subnet]), [])
         self.assertEqual(usage[0].name, "LAN")
+
+    def test_subnet_network_normalizes_host_bits(self) -> None:
+        subnet = DhcpSubnet.model_validate({"id": "s1", "network": "192.168.1.50/24"})
+        self.assertEqual(subnet.network, "192.168.1.0/24")
+
+    def test_subnet_network_rejects_invalid_cidr(self) -> None:
+        with self.assertRaises(ValidationError):
+            DhcpSubnet.model_validate({"id": "s1", "network": "192.168.1.0"})
+        with self.assertRaises(ValidationError):
+            DhcpSubnet.model_validate({"id": "s1", "network": "not-a-network/24"})
+        with self.assertRaises(ValidationError):
+            DhcpSubnet.model_validate({"id": "s1", "network": "2001:db8::/64"})
 
 
 class ConfigBundleTests(unittest.TestCase):
@@ -152,8 +165,7 @@ class ConfigBundleTests(unittest.TestCase):
                 DhcpSubnet(
                     id="s1",
                     name="LAN",
-                    network="192.168.50.0",
-                    netmask="255.255.255.0",
+                    network="192.168.50.0/24",
                     range=DhcpRange(start="192.168.50.100", end="192.168.50.200"),
                 )
             ]
