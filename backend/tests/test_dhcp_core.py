@@ -65,6 +65,38 @@ class DhcpCoreTests(unittest.TestCase):
         self.assertEqual(usage[0].used, 1)
         self.assertGreater(usage[0].total, 0)
 
+    def test_parse_leases_keeps_last_block_per_ip(self) -> None:
+        config = parse_dhcpd_conf(SAMPLE_CONF)
+        duplicate_leases = """
+lease 192.168.1.101 {
+  starts 3 2026/08/30 09:00:00;
+  ends 3 2026/08/30 10:00:00;
+  binding state free;
+  hardware ethernet 11:22:33:44:55:66;
+  client-hostname "laptop";
+}
+lease 192.168.1.101 {
+  starts 3 2026/08/30 10:00:00;
+  ends 4 2099/08/31 10:00:00;
+  binding state active;
+  hardware ethernet 11:22:33:44:55:66;
+  client-hostname "laptop";
+}
+lease 192.168.1.102 {
+  starts 3 2026/08/30 11:00:00;
+  ends 4 2099/08/31 11:00:00;
+  binding state active;
+  hardware ethernet aa:bb:cc:dd:ee:ff;
+}
+"""
+        leases = parse_leases(duplicate_leases, config)
+        self.assertEqual(len(leases), 2)
+        by_ip = {lease.ip: lease for lease in leases}
+        self.assertEqual(by_ip["192.168.1.101"].binding_state, "active")
+        self.assertEqual(by_ip["192.168.1.101"].starts, "2026/08/30 10:00:00")
+        self.assertEqual(by_ip["192.168.1.101"].ends, "2099/08/31 10:00:00")
+        self.assertEqual(by_ip["192.168.1.102"].mac, "aa:bb:cc:dd:ee:ff")
+
     def test_skips_empty_global_options(self) -> None:
         config = DhcpConfig(
             global_options={

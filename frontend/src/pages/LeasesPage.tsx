@@ -83,8 +83,8 @@ export function LeasesPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((lease) => (
-              <tr key={`${lease.ip}-${lease.mac}`}>
+            {filtered.map((lease, index) => (
+              <tr key={`${lease.ip}-${lease.mac}-${lease.starts}-${lease.binding_state}-${index}`}>
                 <td>{lease.ip}</td>
                 <td>{lease.mac || '—'}</td>
                 <td>{lease.hostname || '—'}</td>

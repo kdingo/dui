@@ -20,7 +20,8 @@ def _parse_lease_time(value: str | None) -> datetime | None:
 
 
 def parse_leases(content: str, config: DhcpConfig | None = None) -> list[Lease]:
-    leases: list[Lease] = []
+    # dhcpd.leases is an append log; the last block per IP is authoritative.
+    by_ip: dict[str, Lease] = {}
     blocks = re.split(r"\n(?=lease\s+)", content.strip())
     for block in blocks:
         if not block.strip():
@@ -45,8 +46,8 @@ def parse_leases(content: str, config: DhcpConfig | None = None) -> list[Lease]:
         )
         if config:
             lease.subnet_id, lease.subnet_network = _match_subnet(ip, config)
-        leases.append(lease)
-    return leases
+        by_ip[ip] = lease
+    return list(by_ip.values())
 
 
 def _match_subnet(ip: str, config: DhcpConfig) -> tuple[str | None, str | None]:
