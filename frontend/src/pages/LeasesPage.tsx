@@ -3,6 +3,23 @@ import { api } from '../api/client'
 import type { Lease } from '../api/types'
 import { AutoRefreshControls } from '../components/AutoRefreshControls'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
+import { parseIPv4, splitCidr } from '../lib/ipv4'
+
+function compareCidrAscending(a: string, b: string): number {
+  const aParts = splitCidr(a)
+  const bParts = splitCidr(b)
+  if (aParts && bParts) {
+    const aIp = parseIPv4(aParts.address)
+    const bIp = parseIPv4(bParts.address)
+    if (aIp !== null && bIp !== null && aIp !== bIp) {
+      return aIp - bIp
+    }
+    if (aParts.prefix !== bParts.prefix) {
+      return aParts.prefix - bParts.prefix
+    }
+  }
+  return a.localeCompare(b)
+}
 
 export function LeasesPage() {
   const [leases, setLeases] = useState<Lease[]>([])
@@ -24,7 +41,7 @@ export function LeasesPage() {
     leases.forEach((lease) => {
       if (lease.subnet_network) values.add(lease.subnet_network)
     })
-    return Array.from(values)
+    return Array.from(values).sort(compareCidrAscending)
   }, [leases])
 
   const filtered = subnet === 'all' ? leases : leases.filter((lease) => lease.subnet_network === subnet)
