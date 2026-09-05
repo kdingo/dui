@@ -94,7 +94,7 @@ export function ImportExportPage() {
               onChange={(e) => setZipFile(e.target.files?.[0] ?? null)}
             />
             <span className="muted">
-              Contains the entire /data directory (config, leases, users). Snapshots and logs are not included.
+              Contains the entire /data directory (config, leases, users, snapshots). Logs are not included.
             </span>
           </label>
         ) : (

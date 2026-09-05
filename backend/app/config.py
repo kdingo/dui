@@ -9,7 +9,6 @@ class Settings(BaseSettings):
 
     data_dir: Path = Path("/data")
     logs_dir: Path = Path("/var/log/dui")
-    snapshots_dir: Path = Path("/var/lib/dui/snapshots")
     interface: str = "eth0"
     http_port: int = 8080
     server_name: str = "DHCP UI (DUI)"
@@ -17,6 +16,10 @@ class Settings(BaseSettings):
     session_ttl_hours: int = 24
     login_rate_limit: int = 5
     login_rate_window_seconds: int = 900
+
+    @property
+    def snapshots_dir(self) -> Path:
+        return self.data_dir / "snapshots"
 
     @property
     def dhcpd_conf(self) -> Path:

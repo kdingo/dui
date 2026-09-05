@@ -9,7 +9,7 @@ RUN npm run build
 
 FROM debian:bookworm-slim AS runtime
 
-ARG S6_OVERLAY_VERSION=3.2.0.0
+ARG S6_OVERLAY_VERSION=3.2.3.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -49,7 +49,7 @@ COPY docker/entrypoint.sh /entrypoint.sh
 COPY --from=frontend-build /build/dist /usr/share/nginx/html
 
 RUN chmod +x /entrypoint.sh /etc/s6-overlay/s6-rc.d/dhcpd/run /etc/s6-overlay/s6-rc.d/dui-api/run /etc/s6-overlay/s6-rc.d/nginx/run && \
-    mkdir -p /data /var/log/dui /var/lib/dui/snapshots /var/log/nginx /var/lib/nginx/body /run/nginx && \
+    mkdir -p /data /var/log/dui /var/log/nginx /var/lib/nginx/body /run/nginx && \
     rm -f /etc/nginx/sites-enabled/default
 
 ENV DUI_INTERFACE=eth0 \

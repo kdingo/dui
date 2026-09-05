@@ -185,7 +185,6 @@ class ConfigBundleTests(unittest.TestCase):
         self.settings = Settings(
             data_dir=data_dir,
             logs_dir=root / "logs",
-            snapshots_dir=root / "snapshots",
         )
         self.manager = ConfigManager(self.settings)
         self.validate = patch("app.dhcp.manager.validate_dhcpd_conf").start()
@@ -237,7 +236,6 @@ class ConfigBundleTests(unittest.TestCase):
             Settings(
                 data_dir=other_root,
                 logs_dir=Path(other.name) / "logs",
-                snapshots_dir=Path(other.name) / "snapshots",
             )
         )
         imported = other_manager.import_bundle(bundle)

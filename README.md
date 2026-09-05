@@ -12,7 +12,7 @@ DHCP UI (DUI) is a Dockerized home-network DHCP server with a web management int
 - Configure networks, fixed clients, and global options
 - Import/export the entire `/data` directory as a zip
 - Paste-import `dhcpd.conf`
-- Config snapshots (cleared when the container is recreated)
+- Config snapshots
 - File-based user authentication with bcrypt hashes
 - Server admin: manage users, control `dhcpd`, restart/stop container
 
@@ -36,7 +36,7 @@ docker compose up -d --build
 - On Windows Docker Desktop, host networking behaves differently; build and run the stack on your Linux DHCP host for production use.
 - Disable any existing DHCP server on your router or host before starting DUI.
 - All persistent data is stored in the named Docker volume `dui-data` mounted at `/data`. Generated files stay in the volume, not on the host filesystem.
-- DHCP logs (`/var/log/dui`) and config snapshots (`/var/lib/dui/snapshots`) stay inside the container and are discarded when it is recreated.
+- DHCP logs (`/var/log/dui`) stay inside the container and are discarded when it is recreated.
 - `users.yaml` is copied from the image template on first start. Later image rebuilds do not overwrite an existing volume file.
 
 ## Volume layout
@@ -49,13 +49,13 @@ docker compose up -d --build
   users.yaml
   server.yaml
   session.secret
+  snapshots/
 ```
 
 Not persisted (container filesystem):
 
 ```
 /var/log/dui/dhcpd.log
-/var/lib/dui/snapshots/
 ```
 
 ## Local development
@@ -67,8 +67,7 @@ cd backend
 pip install -r requirements.txt
 set DUI_DATA_DIR=../data
 set DUI_LOGS_DIR=../logs
-set DUI_SNAPSHOTS_DIR=../snapshots
-mkdir ../data ../logs ../snapshots
+mkdir ../data ../logs
 uvicorn app.main:app --reload --app-dir .
 ```
 
