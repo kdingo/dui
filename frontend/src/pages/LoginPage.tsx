@@ -34,7 +34,6 @@ export function LoginPage() {
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin"
               autoComplete="username"
             />
           </label>
