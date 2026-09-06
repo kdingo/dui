@@ -86,16 +86,32 @@ class ConfigManager:
             )
         return items
 
-    def restore_snapshot(self, snapshot_id: str) -> None:
-        src = self.settings.snapshots_dir / snapshot_id
-        if not src.exists():
+    def _snapshot_dir(self, snapshot_id: str) -> Path:
+        base = self.settings.snapshots_dir.resolve()
+        src = (self.settings.snapshots_dir / snapshot_id).resolve()
+        if src != base and base not in src.parents:
             raise FileNotFoundError(f"Snapshot {snapshot_id} not found")
+        if not src.is_dir():
+            raise FileNotFoundError(f"Snapshot {snapshot_id} not found")
+        return src
+
+    def restore_snapshot(self, snapshot_id: str) -> None:
+        src = self._snapshot_dir(snapshot_id)
         if (src / "config.json").exists():
             shutil.copy2(src / "config.json", self.settings.config_json)
         if (src / "dhcpd.conf").exists():
             shutil.copy2(src / "dhcpd.conf", self.settings.dhcpd_conf)
         validate_dhcpd_conf(self.settings.dhcpd_conf)
         reload_dhcp_service(self.settings)
+
+    def delete_snapshot(self, snapshot_id: str) -> None:
+        shutil.rmtree(self._snapshot_dir(snapshot_id))
+
+    def read_snapshot_dhcpd_conf(self, snapshot_id: str) -> str:
+        conf = self._snapshot_dir(snapshot_id) / "dhcpd.conf"
+        if not conf.is_file():
+            raise FileNotFoundError(f"Snapshot {snapshot_id} has no dhcpd.conf")
+        return conf.read_text(encoding="utf-8")
 
     def import_dhcpd_conf(self, content: str) -> DhcpConfig:
         config = parse_dhcpd_conf(content)

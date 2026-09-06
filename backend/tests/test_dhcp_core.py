@@ -261,6 +261,17 @@ class ConfigBundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unsafe zip member path"):
             self.manager.import_bundle(buffer.getvalue())
 
+    def test_snapshot_read_and_delete(self) -> None:
+        snapshot_id = self.manager.create_snapshot()
+        content = self.manager.read_snapshot_dhcpd_conf(snapshot_id)
+        self.assertIn("subnet", content)
+        self.manager.delete_snapshot(snapshot_id)
+        self.assertFalse((self.settings.snapshots_dir / snapshot_id).exists())
+        with self.assertRaises(FileNotFoundError):
+            self.manager.read_snapshot_dhcpd_conf(snapshot_id)
+        with self.assertRaises(FileNotFoundError):
+            self.manager.delete_snapshot(snapshot_id)
+
 
 class S6SvstatTests(unittest.TestCase):
     def test_up_at_start_of_line_is_running(self) -> None:

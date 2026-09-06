@@ -162,8 +162,14 @@ export const api = {
   snapshots() {
     return request<{ snapshots: Snapshot[] }>('/api/snapshots')
   },
+  snapshotDhcpdConf(id: string) {
+    return request<string>(`/api/snapshots/${id}/dhcpd-conf`)
+  },
   restoreSnapshot(id: string) {
     return request<{ status: string }>(`/api/snapshots/${id}/restore`, { method: 'POST' })
+  },
+  deleteSnapshot(id: string) {
+    return request<{ status: string }>(`/api/snapshots/${id}`, { method: 'DELETE' })
   },
   serverInfo() {
     return request<ServerInfo>('/api/admin/server')
