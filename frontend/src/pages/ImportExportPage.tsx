@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { Flash } from '../components/Flash'
+import { Tabs } from '../components/Tabs'
 
 type ImportMethod = 'zip' | 'paste'
 
@@ -58,10 +60,10 @@ export function ImportExportPage() {
   return (
     <div>
       <h2>Import/Export</h2>
-      {error && <div className="error">{error}</div>}
-      {message && <p>{message}</p>}
+      <Flash kind="error" message={error} />
+      <Flash message={message} />
       <div className="panel">
-        <div className="actions" style={{ marginBottom: '1rem' }}>
+        <div className="actions page-header">
           <button className="secondary" onClick={handleExport}>
             Download zip
           </button>
@@ -69,24 +71,17 @@ export function ImportExportPage() {
             Import and apply
           </button>
         </div>
-        <div className="tabs">
-          <button
-            type="button"
-            className={method === 'zip' ? 'active' : ''}
-            onClick={() => setMethod('zip')}
-          >
-            Zip file
-          </button>
-          <button
-            type="button"
-            className={method === 'paste' ? 'active' : ''}
-            onClick={() => setMethod('paste')}
-          >
-            Paste
-          </button>
-        </div>
+        <Tabs
+          id="import-method"
+          value={method}
+          onChange={setMethod}
+          options={[
+            { value: 'zip', label: 'Zip file' },
+            { value: 'paste', label: 'Paste' },
+          ]}
+        />
         {method === 'zip' ? (
-          <label className="form-grid" style={{ maxWidth: 'none' }}>
+          <label className="form-grid wide">
             Zip file
             <input
               type="file"
@@ -98,14 +93,14 @@ export function ImportExportPage() {
             </span>
           </label>
         ) : (
-          <div className="form-grid" style={{ maxWidth: 'none' }}>
+          <div className="form-grid wide">
             <label>
               dhcpd.conf
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={16}
-                style={{ width: '100%', fontFamily: 'monospace' }}
+                className="mono"
               />
             </label>
           </div>

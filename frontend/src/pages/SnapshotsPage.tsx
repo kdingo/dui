@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Snapshot } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { useConfirm } from '../components/ConfirmDialog'
+import { Flash } from '../components/Flash'
 
 function formatSnapshotDate(createdAt: string): string {
   const match = createdAt.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/)
@@ -18,6 +20,7 @@ export function SnapshotsPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [expanded, setExpanded] = useState<Record<string, string>>({})
+  const confirm = useConfirm()
 
   async function load() {
     const data = await api.snapshots()
@@ -48,7 +51,13 @@ export function SnapshotsPage() {
   }
 
   async function restore(id: string) {
-    if (!isAdmin || !window.confirm(`Restore snapshot ${id}?`)) return
+    if (!isAdmin) return
+    const confirmed = await confirm({
+      title: 'Restore this snapshot?',
+      message: `The current configuration will be replaced with snapshot ${id}.`,
+      confirmLabel: 'Restore',
+    })
+    if (!confirmed) return
     try {
       await api.restoreSnapshot(id)
       setMessage(`Restored snapshot ${id}.`)
@@ -59,7 +68,14 @@ export function SnapshotsPage() {
   }
 
   async function remove(id: string) {
-    if (!isAdmin || !window.confirm(`Delete snapshot ${id}?`)) return
+    if (!isAdmin) return
+    const confirmed = await confirm({
+      title: 'Delete this snapshot?',
+      message: `Snapshot ${id} will be permanently removed.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!confirmed) return
     try {
       await api.deleteSnapshot(id)
       setMessage(`Deleted snapshot ${id}.`)
@@ -80,8 +96,8 @@ export function SnapshotsPage() {
   return (
     <div>
       <h2>Config snapshots</h2>
-      {error && <div className="error">{error}</div>}
-      {message && <p>{message}</p>}
+      <Flash kind="error" message={error} />
+      <Flash message={message} />
       <div className="panel">
         <table>
           <thead>
@@ -98,18 +114,18 @@ export function SnapshotsPage() {
                   <td>{formatSnapshotDate(snapshot.created_at)}</td>
                   <td>{snapshot.id}</td>
                   {isAdmin && (
-                    <td>
+                    <td className="actions">
                       <button
                         className="secondary"
                         disabled={!snapshot.has_dhcpd_conf}
                         onClick={() => toggleView(snapshot)}
                       >
                         View
-                      </button>{' '}
+                      </button>
                       <button className="secondary" onClick={() => restore(snapshot.id)}>
                         Restore
-                      </button>{' '}
-                      <button className="secondary" onClick={() => remove(snapshot.id)}>
+                      </button>
+                      <button className="danger" onClick={() => remove(snapshot.id)}>
                         Delete
                       </button>
                     </td>
@@ -122,7 +138,7 @@ export function SnapshotsPage() {
                         readOnly
                         value={expanded[snapshot.id]}
                         rows={16}
-                        style={{ width: '100%', fontFamily: 'monospace' }}
+                        className="mono"
                       />
                     </td>
                   </tr>

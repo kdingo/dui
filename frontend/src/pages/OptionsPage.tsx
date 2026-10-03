@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { DhcpConfig } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { Flash } from '../components/Flash'
 
 function optionToInput(value: unknown): string {
   if (value == null || value === '') return ''
@@ -78,8 +79,8 @@ export function OptionsPage() {
   return (
     <div>
       <h2>Options</h2>
-      {error && <div className="error">{error}</div>}
-      {message && <p>{message}</p>}
+      <Flash kind="error" message={error} />
+      <Flash message={message} />
       <form className="panel form-grid" onSubmit={handleSubmit}>
         <label>
           DNS servers (comma separated)

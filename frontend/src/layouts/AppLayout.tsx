@@ -1,14 +1,33 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from 'motion/react'
+import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { ThemeToggle } from '../components/ThemeToggle'
+import { EASE_OUT, PILL_SPRING } from '../lib/motion'
 
 interface AppLayoutProps {
   serverName: string
 }
 
+function NavItem({ to, end, children }: { to: string; end?: boolean; children: React.ReactNode }) {
+  return (
+    <NavLink to={to} end={end} className="nav-link">
+      {({ isActive }) => (
+        <>
+          {isActive && <motion.span layoutId="nav-pill" className="nav-pill" transition={PILL_SPRING} />}
+          <span className="nav-label">{children}</span>
+        </>
+      )}
+    </NavLink>
+  )
+}
+
 export function AppLayout({ serverName }: AppLayoutProps) {
   const { user, setUser, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Captured per render so an exiting page keeps showing its own content.
+  const outlet = useOutlet()
 
   async function handleLogout() {
     await api.logout()
@@ -19,26 +38,29 @@ export function AppLayout({ serverName }: AppLayoutProps) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <h1>{serverName}</h1>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true" />
+          <h1>{serverName}</h1>
+        </div>
         <nav>
-          <NavLink to="/" end>
+          <NavItem to="/" end>
             Dashboard
-          </NavLink>
-          <NavLink to="/leases">Leases</NavLink>
-          <NavLink to="/logs">View logs</NavLink>
+          </NavItem>
+          <NavItem to="/leases">Leases</NavItem>
+          <NavItem to="/logs">View logs</NavItem>
           <span className="nav-group-title">Configure</span>
-          <NavLink to="/configure/networks">Networks</NavLink>
-          <NavLink to="/configure/clients">DHCP clients</NavLink>
-          <NavLink to="/configure/options">Server Options</NavLink>
-          <NavLink to="/configure/snapshots">Config snapshots</NavLink>
+          <NavItem to="/configure/networks">Networks</NavItem>
+          <NavItem to="/configure/clients">DHCP clients</NavItem>
+          <NavItem to="/configure/options">Server Options</NavItem>
+          <NavItem to="/configure/snapshots">Config snapshots</NavItem>
           {isAdmin && (
             <>
               <span className="nav-group-title">Admin</span>
-              <NavLink to="/admin" end>
+              <NavItem to="/admin" end>
                 Server admin
-              </NavLink>
-              <NavLink to="/admin/users">Users</NavLink>
-              <NavLink to="/admin/import-export">Import/Export</NavLink>
+              </NavItem>
+              <NavItem to="/admin/users">Users</NavItem>
+              <NavItem to="/admin/import-export">Import/Export</NavItem>
             </>
           )}
         </nav>
@@ -47,14 +69,30 @@ export function AppLayout({ serverName }: AppLayoutProps) {
         <header className="topbar">
           <strong>{serverName}</strong>
           <div className="actions">
-            <span className="muted">{user?.username}</span>
+            <span className="user-chip">
+              <span className="avatar" aria-hidden="true">
+                {user?.username.charAt(0).toUpperCase()}
+              </span>
+              {user?.username}
+            </span>
+            <ThemeToggle />
             <button className="secondary" onClick={handleLogout}>
               Logout
             </button>
           </div>
         </header>
         <main className="content">
-          <Outlet />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6, transition: { duration: 0.1, ease: 'easeIn' } }}
+              transition={{ duration: 0.24, ease: EASE_OUT }}
+            >
+              {outlet}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

@@ -3,6 +3,8 @@ import { api } from '../api/client'
 import type { DhcpConfig, DhcpSubnet } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { CIDR_PREFIXES, ipv4NetworkPreview, splitCidr } from '../lib/ipv4'
+import { useConfirm } from '../components/ConfirmDialog'
+import { Flash } from '../components/Flash'
 
 const emptySubnet = {
   name: '',
@@ -33,6 +35,7 @@ export function NetworksPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const confirm = useConfirm()
 
   const preview = useMemo(
     () => ipv4NetworkPreview(form.address, form.prefix),
@@ -90,7 +93,14 @@ export function NetworksPage() {
   }
 
   async function removeSubnet(id: string) {
-    if (!isAdmin || !window.confirm('Delete this subnet?')) return
+    if (!isAdmin) return
+    const confirmed = await confirm({
+      title: 'Delete this subnet?',
+      message: 'Its pool and options will be removed from the DHCP configuration.',
+      confirmLabel: 'Delete subnet',
+      danger: true,
+    })
+    if (!confirmed) return
     const updated = await api.deleteSubnet(id)
     setConfig(updated)
   }
@@ -98,9 +108,9 @@ export function NetworksPage() {
   return (
     <div>
       <h2>Networks</h2>
-      {error && <div className="error">{error}</div>}
-      {message && <p>{message}</p>}
-      <div className="panel" style={{ marginBottom: '1rem' }}>
+      <Flash kind="error" message={error} />
+      <Flash message={message} />
+      <div className="panel">
         <table>
           <thead>
             <tr>

@@ -4,6 +4,8 @@ import type { Lease } from '../api/types'
 import { AutoRefreshControls } from '../components/AutoRefreshControls'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { parseIPv4, splitCidr } from '../lib/ipv4'
+import { Flash } from '../components/Flash'
+import { Tabs } from '../components/Tabs'
 
 function compareCidrAscending(a: string, b: string): number {
   const aParts = splitCidr(a)
@@ -58,17 +60,13 @@ export function LeasesPage() {
           onRefresh={refreshNow}
         />
       </div>
-      <div className="tabs">
-        <button className={subnet === 'all' ? 'active' : ''} onClick={() => setSubnet('all')}>
-          All
-        </button>
-        {subnets.map((value) => (
-          <button key={value} className={subnet === value ? 'active' : ''} onClick={() => setSubnet(value)}>
-            {value}
-          </button>
-        ))}
-      </div>
-      {error && <div className="error">{error}</div>}
+      <Tabs
+        id="lease-subnet"
+        value={subnet}
+        onChange={setSubnet}
+        options={[{ value: 'all', label: 'All' }, ...subnets.map((value) => ({ value, label: value }))]}
+      />
+      <Flash kind="error" message={error} />
       <div className="panel">
         <table>
           <thead>

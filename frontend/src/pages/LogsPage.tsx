@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { AutoRefreshControls } from '../components/AutoRefreshControls'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
+import { Flash } from '../components/Flash'
 
 export function LogsPage() {
   const [lines, setLines] = useState<string[]>([])
@@ -35,7 +36,7 @@ export function LogsPage() {
           onRefresh={refreshNow}
         />
       </div>
-      {error && <div className="error">{error}</div>}
+      <Flash kind="error" message={error} />
       <div className="log-viewer" ref={logRef}>{lines.join('\n') || 'No log lines yet.'}</div>
     </div>
   )

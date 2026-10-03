@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { DhcpConfig, DhcpHost } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { useConfirm } from '../components/ConfirmDialog'
+import { Flash } from '../components/Flash'
 
 const emptyHost = {
   name: '',
@@ -16,6 +18,7 @@ export function ClientsPage() {
   const [form, setForm] = useState(emptyHost)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const confirm = useConfirm()
 
   useEffect(() => {
     api.getConfig().then(setConfig).catch((err) => setError(err.message))
@@ -45,15 +48,22 @@ export function ClientsPage() {
   }
 
   async function removeHost(id: string) {
-    if (!isAdmin || !window.confirm('Delete this client reservation?')) return
+    if (!isAdmin) return
+    const confirmed = await confirm({
+      title: 'Delete this client reservation?',
+      message: 'The fixed address will be released back to the pool.',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!confirmed) return
     setConfig(await api.deleteHost(id))
   }
 
   return (
     <div>
       <h2>DHCP clients</h2>
-      {error && <div className="error">{error}</div>}
-      <div className="panel" style={{ marginBottom: '1rem' }}>
+      <Flash kind="error" message={error} />
+      <div className="panel">
         <table>
           <thead>
             <tr>

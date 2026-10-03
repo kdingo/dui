@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { api, setCsrfToken, setUnauthorizedHandler } from './api/client'
 import { AuthContext } from './auth/AuthContext'
+import { ConfirmProvider } from './components/ConfirmDialog'
 import type { User } from './api/types'
 import { AppLayout } from './layouts/AppLayout'
 import { LoginPage } from './pages/LoginPage'
@@ -66,40 +67,46 @@ export default function App() {
   }, [])
 
   if (loading) {
-    return <div className="login-page">Loading...</div>
+    return (
+      <div className="boot" role="status" aria-label="Loading">
+        <div className="boot-orb" />
+      </div>
+    )
   }
 
   return (
     <AuthContext.Provider value={{ user, setUser, isAdmin: user?.role === 'admin' }}>
-      <Routes>
-        <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
-        <Route
-          element={
-            <ProtectedRoute user={user}>
-              <AppLayout serverName={serverName} />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<DashboardPage />} />
-          <Route path="leases" element={<LeasesPage />} />
-          <Route path="logs" element={<LogsPage />} />
-          <Route path="configure/networks" element={<NetworksPage />} />
-          <Route path="configure/clients" element={<ClientsPage />} />
-          <Route path="configure/options" element={<OptionsPage />} />
-          <Route path="configure/snapshots" element={<SnapshotsPage />} />
-          <Route path="admin" element={<AdminPage />} />
-          <Route path="admin/users" element={<UsersPage />} />
+      <ConfirmProvider>
+        <Routes>
+          <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
           <Route
-            path="admin/import-export"
             element={
-              <AdminRoute user={user}>
-                <ImportExportPage />
-              </AdminRoute>
+              <ProtectedRoute user={user}>
+                <AppLayout serverName={serverName} />
+              </ProtectedRoute>
             }
-          />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          >
+            <Route index element={<DashboardPage />} />
+            <Route path="leases" element={<LeasesPage />} />
+            <Route path="logs" element={<LogsPage />} />
+            <Route path="configure/networks" element={<NetworksPage />} />
+            <Route path="configure/clients" element={<ClientsPage />} />
+            <Route path="configure/options" element={<OptionsPage />} />
+            <Route path="configure/snapshots" element={<SnapshotsPage />} />
+            <Route path="admin" element={<AdminPage />} />
+            <Route path="admin/users" element={<UsersPage />} />
+            <Route
+              path="admin/import-export"
+              element={
+                <AdminRoute user={user}>
+                  <ImportExportPage />
+                </AdminRoute>
+              }
+            />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ConfirmProvider>
     </AuthContext.Provider>
   )
 }

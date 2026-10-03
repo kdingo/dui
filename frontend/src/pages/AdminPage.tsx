@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { DhcpStatus, ServerInfo } from '../api/types'
+import { useConfirm } from '../components/ConfirmDialog'
+import { Flash } from '../components/Flash'
 
 export function AdminPage() {
   const [server, setServer] = useState<ServerInfo | null>(null)
@@ -8,6 +10,7 @@ export function AdminPage() {
   const [serverName, setServerName] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const confirm = useConfirm()
 
   async function refresh() {
     const [serverInfo, dhcpStatus] = await Promise.all([api.serverInfo(), api.dhcpStatus()])
@@ -34,7 +37,16 @@ export function AdminPage() {
   }
 
   async function containerAction(action: 'stop' | 'restart') {
-    if (!window.confirm(`Really ${action} the container?`)) return
+    const confirmed = await confirm({
+      title: `${action === 'stop' ? 'Stop' : 'Restart'} the container?`,
+      message:
+        action === 'stop'
+          ? 'The web UI and DHCP service will go offline until the container is started again.'
+          : 'The web UI and DHCP service will be briefly unavailable.',
+      confirmLabel: action === 'stop' ? 'Stop container' : 'Restart container',
+      danger: action === 'stop',
+    })
+    if (!confirmed) return
     if (action === 'stop') await api.containerStop()
     else await api.containerRestart()
   }
@@ -42,8 +54,8 @@ export function AdminPage() {
   return (
     <div>
       <h2>Server admin</h2>
-      {error && <div className="error">{error}</div>}
-      {message && <p>{message}</p>}
+      <Flash kind="error" message={error} />
+      <Flash message={message} />
 
       <div className="card-grid">
         <div className="card">
@@ -66,7 +78,10 @@ export function AdminPage() {
 
         <div className="card">
           <h3>DHCP service</h3>
-          <p>{status?.running ? 'Running' : 'Stopped'}</p>
+          <p>
+            <span className={`status-dot ${status?.running ? 'on' : ''}`} aria-hidden="true" />
+            {status?.running ? 'Running' : 'Stopped'}
+          </p>
           <p className="muted">{status?.detail}</p>
           <div className="actions">
             <button className="secondary" disabled={Boolean(status?.running)} onClick={() => dhcpAction('start')}>

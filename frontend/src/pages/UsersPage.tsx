@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { User } from '../api/types'
+import { useConfirm } from '../components/ConfirmDialog'
+import { Flash } from '../components/Flash'
 
 const emptyForm = {
   username: '',
@@ -14,6 +16,7 @@ export function UsersPage() {
   const [editingUsername, setEditingUsername] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const confirm = useConfirm()
 
   const adminCount = users.filter((user) => user.role === 'admin').length
 
@@ -68,7 +71,13 @@ export function UsersPage() {
 
   async function removeUser(user: User) {
     if (isLastAdmin(user)) return
-    if (!window.confirm(`Delete user "${user.username}"?`)) return
+    const confirmed = await confirm({
+      title: `Delete user "${user.username}"?`,
+      message: 'They will no longer be able to sign in.',
+      confirmLabel: 'Delete user',
+      danger: true,
+    })
+    if (!confirmed) return
     setError('')
     setMessage('')
     try {
@@ -84,10 +93,10 @@ export function UsersPage() {
   return (
     <div>
       <h2>Users</h2>
-      {error && <div className="error">{error}</div>}
-      {message && <p>{message}</p>}
+      <Flash kind="error" message={error} />
+      <Flash message={message} />
 
-      <div className="panel" style={{ marginBottom: '1rem' }}>
+      <div className="panel">
         <table>
           <thead>
             <tr>
