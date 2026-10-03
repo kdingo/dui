@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import admin, auth, config, dashboard, leases, logs, snapshots
 
-app = FastAPI(title="DHCP UI (DUI)", version="1.0.0")
+app = FastAPI(title="DHCP UI", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,

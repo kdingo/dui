@@ -39,7 +39,7 @@ export function LoginPage() {
         transition={POP_SPRING}
       >
         <div className="brand-mark" aria-hidden="true" />
-        <h2>DHCP UI (DUI)</h2>
+        <h2>DHCP UI</h2>
         <p className="muted">Sign in to manage your DHCP server.</p>
         <Flash kind="error" message={state?.expired ? 'Your session has expired. Please sign in again.' : ''} />
         <form className="form-grid" onSubmit={handleSubmit}>

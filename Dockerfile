@@ -54,7 +54,7 @@ RUN chmod +x /entrypoint.sh /etc/s6-overlay/s6-rc.d/dhcpd/run /etc/s6-overlay/s6
 
 ENV DUI_INTERFACE=eth0 \
     DUI_HTTP_PORT=8067 \
-    DUI_SERVER_NAME="DHCP UI (DUI)" \
+    DUI_SERVER_NAME="DUI" \
     PYTHONPATH=/app/backend
 
 VOLUME ["/data"]

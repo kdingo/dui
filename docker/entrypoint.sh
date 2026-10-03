@@ -55,7 +55,7 @@ ln -sf /etc/nginx/sites-available/dui.conf /etc/nginx/sites-enabled/dui.conf
 mkdir -p /etc/cont-env
 printf '%s' "${DUI_INTERFACE:-eth0}" > /etc/cont-env/DUI_INTERFACE
 printf '%s' "${HTTP_PORT}" > /etc/cont-env/DUI_HTTP_PORT
-printf '%s' "${DUI_SERVER_NAME:-DHCP UI (DUI)}" > /etc/cont-env/DUI_SERVER_NAME
+printf '%s' "${DUI_SERVER_NAME:-DHCP UI}" > /etc/cont-env/DUI_SERVER_NAME
 printf '%s' "$DATA_DIR" > /etc/cont-env/DUI_DATA_DIR
 printf '%s' "$LOGS_DIR" > /etc/cont-env/DUI_LOGS_DIR
 

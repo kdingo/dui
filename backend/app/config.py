@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     logs_dir: Path = Path("/var/log/dui")
     interface: str = "eth0"
     http_port: int = 8080
-    server_name: str = "DHCP UI (DUI)"
+    server_name: str = "DHCP UI"
     users_file: Path | None = None
     session_ttl_hours: int = 24
     login_rate_limit: int = 5

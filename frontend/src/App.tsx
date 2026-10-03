@@ -35,7 +35,7 @@ function AdminRoute({ user, children }: { user: User | null; children: React.Rea
 export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [serverName, setServerName] = useState('DHCP UI (DUI)')
+  const [serverName, setServerName] = useState('DUI')
   const navigate = useNavigate()
   const location = useLocation()
   const userRef = useRef(user)
