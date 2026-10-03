@@ -18,6 +18,12 @@ export function getCsrfToken() {
   return csrfToken
 }
 
+let unauthorizedHandler: (() => void) | null = null
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler
+}
+
 function csrfFromCookie() {
   if (typeof document === 'undefined') return ''
   const match = document.cookie.split('; ').find((row) => row.startsWith('dui_csrf='))
@@ -53,6 +59,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   })
 
   if (!response.ok) {
+    if (response.status === 401 && path !== '/api/auth/login') {
+      unauthorizedHandler?.()
+    }
     throw new Error(await errorDetail(response))
   }
 
@@ -141,6 +150,9 @@ export const api = {
   async exportConfig() {
     const response = await fetch('/api/config/export', { credentials: 'include' })
     if (!response.ok) {
+      if (response.status === 401) {
+        unauthorizedHandler?.()
+      }
       throw new Error(await errorDetail(response))
     }
     return response.blob()

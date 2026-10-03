@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { api } from './api/client'
+import { useEffect, useRef, useState } from 'react'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { api, setCsrfToken, setUnauthorizedHandler } from './api/client'
 import { AuthContext } from './auth/AuthContext'
 import type { User } from './api/types'
 import { AppLayout } from './layouts/AppLayout'
@@ -35,6 +35,23 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [serverName, setServerName] = useState('DHCP UI (DUI)')
+  const navigate = useNavigate()
+  const location = useLocation()
+  const userRef = useRef(user)
+  const pathRef = useRef(location.pathname)
+  userRef.current = user
+  pathRef.current = location.pathname
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (!userRef.current) return
+      userRef.current = null
+      setCsrfToken('')
+      setUser(null)
+      navigate('/login', { replace: true, state: { from: pathRef.current, expired: true } })
+    })
+    return () => setUnauthorizedHandler(null)
+  }, [navigate])
 
   useEffect(() => {
     api
