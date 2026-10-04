@@ -4,4 +4,6 @@ LOGS_DIR="${DUI_LOGS_DIR:-/var/log/dui}"
 mkdir -p "$LOGS_DIR"
 touch "$LOGS_DIR/dhcpd.log"
 # -d sends dhcpd messages to stderr (no syslog in this image). Persist them for the UI.
-exec dhcpd -d -f -cf "$DATA_DIR/dhcpd.conf" -lf "$DATA_DIR/dhcpd.leases" -pf /run/dhcpd.pid "${DUI_INTERFACE:-eth0}" >> "$LOGS_DIR/dhcpd.log" 2>&1
+# -user/-group: dhcpd binds its sockets as root, then drops to the dhcpd user, which can write
+# only the leases directory.
+exec dhcpd -user dhcpd -group dhcpd -d -f -cf "$DATA_DIR/dhcpd.conf" -lf "$DATA_DIR/leases/dhcpd.leases" -pf /run/dhcpd/dhcpd.pid "${DUI_INTERFACE:-eth0}" >> "$LOGS_DIR/dhcpd.log" 2>&1

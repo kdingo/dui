@@ -3,3 +3,11 @@ dist
 .git
 frontend/node_modules
 frontend/dist
+**/__pycache__
+**/.pytest_cache
+.env
+.env.*
+data
+dui-data
+backend/tests
+cookies.txt

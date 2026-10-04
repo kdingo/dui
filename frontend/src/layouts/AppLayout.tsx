@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Logo } from '../components/Logo'
@@ -70,12 +70,12 @@ export function AppLayout({ serverName }: AppLayoutProps) {
         <header className="topbar">
           <strong>{serverName}</strong>
           <div className="actions">
-            <span className="user-chip">
+            <Link className="user-chip" to="/account/password" title="Change password">
               <span className="avatar" aria-hidden="true">
                 {user?.username.charAt(0).toUpperCase()}
               </span>
               {user?.username}
-            </span>
+            </Link>
             <ThemeToggle />
             <button className="secondary" onClick={handleLogout}>
               Logout

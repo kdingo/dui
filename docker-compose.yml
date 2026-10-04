@@ -7,14 +7,32 @@ services:
     # ports:
     #   - 8067:8067/tcp
     #   - 67:67/udp
+    # dhcpd needs raw sockets and port 67; nothing in the image needs NET_ADMIN.
+    cap_drop:
+      - ALL
     cap_add:
-      - NET_ADMIN
       - NET_RAW
+      - NET_BIND_SERVICE
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+      - KILL
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - dui-data:/data
     environment:
       DUI_INTERFACE: eth0
       DUI_HTTP_PORT: 8067
+      # Serve the UI over HTTPS (self-signed unless DUI_TLS_CERT/DUI_TLS_KEY are set).
+      DUI_TLS: "true"
+      # Optional: listen only on a management address, e.g. 192.168.1.2
+      # DUI_BIND_ADDRESS: 192.168.1.2
+      # Optional: first-start admin password (12+ characters). If unset, a random one-time
+      # password is printed to the container log. Remove it after the first start.
+      # DUI_ADMIN_PASSWORD: change-me-please
     restart: unless-stopped
 
 volumes:

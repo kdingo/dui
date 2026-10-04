@@ -12,15 +12,13 @@ DUI is a Dockerized home-network DHCP server with a web management interface. It
 - Lease viewer grouped by subnet
 - Live DHCP log viewer
 - Configure networks, fixed clients, and global options
-- Import/export the entire `/data` directory as a zip
+- Import/export the DHCP configuration as a zip
 - Paste-import `dhcpd.conf`
 - Config snapshots
 - File-based user authentication with bcrypt hashes
 - Server admin: manage users, control `dhcpd`, restart/stop container
 
 ## Quick start
-
-Default credentials on first install: `admin` / `dui` (change the credentials after logging in).
 
 1. Edit `docker-compose.yml` and set `DUI_INTERFACE` to your host network interface.
 
@@ -30,7 +28,19 @@ Default credentials on first install: `admin` / `dui` (change the credentials af
 docker compose up -d --build
 ```
 
-3. Open the UI at `http://<host>:8067`
+3. Get the one-time admin password from the first-start log, then sign in at `https://<host>:8067`. You'll be asked to choose your own password that meets the password policy (by default, 12+ characters).
+
+```bash
+docker compose logs dui | grep "DUI login"
+```
+
+The UI uses a self-signed certificate by default, so your browser will warn about it once. To use your own certificate, set `DUI_TLS_CERT` and `DUI_TLS_KEY` to files mounted into the container.
+
+Lost the admin password? Issue a new one-time password:
+
+```bash
+docker compose exec dui python3 -m app.auth.cli reset-password admin
+```
 
 ## Deployment notes
 
@@ -39,19 +49,32 @@ docker compose up -d --build
 - Disable any existing DHCP server on your router or host before starting DUI.
 - All persistent data is stored in the named Docker volume `dui-data` mounted at `/data`. Generated files stay in the volume, not on the host filesystem.
 - DHCP logs (`/var/log/dui`) stay inside the container and are discarded when it is recreated.
-- `users.yaml` is copied from the image template on first start. Later image rebuilds do not overwrite an existing volume file.
+- `users.yaml` is created on first start with a random one-time admin password, or from `DUI_ADMIN_PASSWORD` (must meet the password policy) if set. Later image rebuilds don't overwrite it. Remove `DUI_ADMIN_PASSWORD` from your compose file after the first start.
+- Upgrading from an earlier release: accounts still using the old default password (`admin`/`dui`) must choose a new one at their next sign-in. The leases file moves to `/data/leases/`. On every start, `dhcpd.conf` is regenerated from validated settings, and any unsafe statements are removed and logged.
+
+### Environment variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DUI_INTERFACE` | `eth0` | Interface dhcpd serves |
+| `DUI_HTTP_PORT` | `8067` | Port for the web UI |
+| `DUI_TLS` | `true` | Serve the UI over HTTPS. Setting it to `false` sends passwords unencrypted |
+| `DUI_TLS_CERT` / `DUI_TLS_KEY` | self-signed in `/data/tls` | Your own certificate and key |
+| `DUI_BIND_ADDRESS` | all addresses | Listen only on this address, such as a management IP |
+| `DUI_ADMIN_PASSWORD` | random, printed once | First-start admin password |
 
 ## Volume layout
 
 ```
 /data/
-  dhcpd.conf
-  dhcpd.leases
+  dhcpd.conf        generated from config.json
   config.json
-  users.yaml
   server.yaml
-  session.secret
+  users.yaml        bcrypt hashes (0600)
+  session.secret    signs session cookies (0600)
+  leases/dhcpd.leases
   snapshots/
+  tls/              self-signed certificate (root only)
 ```
 
 Not persisted (container filesystem):
@@ -70,6 +93,7 @@ pip install -r requirements.txt
 set DUI_DATA_DIR=../data
 set DUI_LOGS_DIR=../logs
 mkdir ../data ../logs
+python -m app.auth.cli init
 uvicorn app.main:app --reload --app-dir .
 ```
 
@@ -83,10 +107,18 @@ npm run dev
 
 ## Security
 
-- Passwords are stored as bcrypt hashes in `users.yaml`
-- Sessions use signed HttpOnly cookies
-- CSRF protection on mutating API requests
-- Login rate limiting
+DUI controls the DHCP server for your whole network. Anyone who can change its settings can point every device at a malicious router or DNS server. Treat admin access accordingly.
+
+- No default password. The first admin gets a random one-time password and must replace it.
+- The UI is served over HTTPS, cookies are `Secure`, `HttpOnly` and `SameSite=Strict`, and nginx sends a strict Content-Security-Policy.
+- Requests that change anything need a CSRF token and must come from the same origin. There's no CORS access.
+- Sessions are checked against `users.yaml` on every request, so logout, password changes, role changes and deleted users take effect immediately.
+- Logins are rate-limited per client IP and per username. Admins choose the password policy under **Server admin → Password policy**: a minimum length (8–72, default 12) and optional requirements for lowercase, uppercase, digits and symbols, and for not containing the username. It is stored in `/data/password_policy.yaml` and applies whenever a password is set; existing passwords keep working.
+- Every field written to `dhcpd.conf` is validated, and imports are parsed and regenerated rather than written as-is. Statements that can run commands or read files (`on commit`, `execute`, `include`, `omapi-*`, `key` and similar) are rejected.
+- Exports contain only the DHCP configuration (`dhcpd.conf`, `config.json`, `server.yaml`). Imports never replace users or the session secret. The exported zip still describes your network, so store it carefully.
+- The API runs as an unprivileged `dui` user. dhcpd drops to a `dhcpd` user after binding its sockets. The container keeps only the capabilities it needs and sets `no-new-privileges`.
+- The image build pins base images by digest, checks s6-overlay downloads against checksums, and installs Python packages from a hash-locked `backend/requirements.lock`.
+- Recommended: put the UI on a management network (`DUI_BIND_ADDRESS`) instead of exposing it to every device on the LAN.
 
 ## License
 

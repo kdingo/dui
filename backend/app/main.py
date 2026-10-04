@@ -1,19 +1,12 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import admin, auth, config, dashboard, leases, logs, snapshots
 
-app = FastAPI(title="DHCP UI", version="1.0.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# No CORS middleware: nginx (and the Vite dev proxy) serve the UI and API from one origin,
+# so no cross-origin access is ever needed. Interactive docs are disabled to shrink the surface.
+app = FastAPI(title="DHCP UI", version="1.0.0", docs_url=None, redoc_url=None, openapi_url=None)
 
 app.include_router(auth.router)
 app.include_router(dashboard.router)

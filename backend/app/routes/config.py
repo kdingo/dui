@@ -7,9 +7,21 @@ from pydantic import BaseModel, Field
 
 from ..auth.deps import get_current_user, require_admin, verify_csrf
 from ..dhcp.manager import ConfigManager, DhcpValidationError
-from ..dhcp.models import DhcpConfig, DhcpHost, DhcpRange, DhcpSubnet, IPv4Cidr
+from ..dhcp.models import (
+    DhcpConfig,
+    DhcpHost,
+    DhcpOptions,
+    DhcpRange,
+    DhcpSubnet,
+    FixedAddress,
+    HostName,
+    IPv4Cidr,
+    MacAddress,
+)
 
 router = APIRouter(prefix="/api/config", tags=["config"])
+
+MAX_ZIP_UPLOAD_BYTES = 2 * 1024 * 1024
 
 
 @router.get("")
@@ -46,9 +58,9 @@ async def apply_config(
 
 class SubnetPayload(BaseModel):
     network: IPv4Cidr
-    name: str | None = None
+    name: str | None = Field(default=None, max_length=128)
     range: DhcpRange | None = None
-    options: dict = Field(default_factory=dict)
+    options: DhcpOptions = Field(default_factory=dict)
 
 
 @router.post("/subnets")
@@ -108,10 +120,10 @@ async def delete_subnet(
 
 
 class HostPayload(BaseModel):
-    name: str
-    hardware_address: str
-    fixed_address: str
-    options: dict = Field(default_factory=dict)
+    name: HostName
+    hardware_address: MacAddress
+    fixed_address: FixedAddress
+    options: DhcpOptions = Field(default_factory=dict)
 
 
 @router.post("/hosts")
@@ -169,7 +181,7 @@ async def delete_host(
 
 
 class OptionsPayload(BaseModel):
-    global_options: dict = Field(default_factory=dict)
+    global_options: DhcpOptions = Field(default_factory=dict)
 
 
 @router.put("/options")
@@ -205,7 +217,7 @@ async def get_dhcpd_conf(_: dict[str, str] = Depends(require_admin)) -> Response
 
 
 class ImportPayload(BaseModel):
-    content: str
+    content: str = Field(max_length=1024 * 1024)
 
 
 @router.post("/import")
@@ -231,7 +243,9 @@ async def import_config_zip(
 ) -> DhcpConfig:
     manager = ConfigManager()
     try:
-        zip_bytes = await file.read()
+        zip_bytes = await file.read(MAX_ZIP_UPLOAD_BYTES + 1)
+        if len(zip_bytes) > MAX_ZIP_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="Zip file is too large")
         return manager.import_bundle(zip_bytes)
     except DhcpValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

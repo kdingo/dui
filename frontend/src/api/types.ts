@@ -1,6 +1,16 @@
 export interface User {
   username: string
   role: 'admin' | 'viewer'
+  must_change_password?: boolean
+}
+
+export interface PasswordPolicy {
+  min_length: number
+  require_lowercase: boolean
+  require_uppercase: boolean
+  require_digit: boolean
+  require_symbol: boolean
+  disallow_username: boolean
 }
 
 export interface SubnetUsage {

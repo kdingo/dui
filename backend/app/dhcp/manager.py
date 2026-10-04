@@ -5,16 +5,23 @@ import os
 import shutil
 import signal
 import subprocess
-import tempfile
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+import yaml
 
 from ..config import Settings, get_settings
 from .conf_generator import generate_dhcpd_conf
 from .conf_parser import parse_dhcpd_conf
 from .models import DhcpConfig, SnapshotInfo
 from .validator import DhcpValidationError, validate_dhcpd_conf
+
+# Only DHCP configuration travels in a bundle. users.yaml and session.secret never leave or
+# enter through it: an exported secret lets anyone forge sessions, and an imported one is a backdoor.
+BUNDLE_FILES = ("dhcpd.conf", "config.json", "server.yaml")
+MAX_BUNDLE_MEMBERS = 1000
+MAX_BUNDLE_BYTES = 10 * 1024 * 1024
 
 
 class ConfigManager:
@@ -33,14 +40,14 @@ class ConfigManager:
             return config
         return DhcpConfig.model_validate_json(path.read_text(encoding="utf-8"))
 
+    def _write_config(self, config: DhcpConfig) -> None:
+        conf_text = generate_dhcpd_conf(config)
+        self.settings.config_json.write_text(config.model_dump_json(indent=2), encoding="utf-8")
+        self.settings.dhcpd_conf.write_text(conf_text, encoding="utf-8")
+
     def save_config(self, config: DhcpConfig, apply: bool = True) -> None:
         snapshot_id = self.create_snapshot() if apply else None
-        self.settings.config_json.write_text(
-            config.model_dump_json(indent=2),
-            encoding="utf-8",
-        )
-        conf_text = generate_dhcpd_conf(config)
-        self.settings.dhcpd_conf.write_text(conf_text, encoding="utf-8")
+        self._write_config(config)
         if apply:
             try:
                 validate_dhcpd_conf(self.settings.dhcpd_conf)
@@ -97,10 +104,15 @@ class ConfigManager:
 
     def restore_snapshot(self, snapshot_id: str) -> None:
         src = self._snapshot_dir(snapshot_id)
+        # Rebuild dhcpd.conf from validated data rather than copying it, so a snapshot holding a
+        # hand-edited or older unsafe dhcpd.conf can't reintroduce raw statements.
         if (src / "config.json").exists():
-            shutil.copy2(src / "config.json", self.settings.config_json)
-        if (src / "dhcpd.conf").exists():
-            shutil.copy2(src / "dhcpd.conf", self.settings.dhcpd_conf)
+            config = DhcpConfig.model_validate_json((src / "config.json").read_text(encoding="utf-8"))
+        elif (src / "dhcpd.conf").exists():
+            config = parse_dhcpd_conf((src / "dhcpd.conf").read_text(encoding="utf-8"))
+        else:
+            raise FileNotFoundError(f"Snapshot {snapshot_id} is empty")
+        self._write_config(config)
         validate_dhcpd_conf(self.settings.dhcpd_conf)
         reload_dhcp_service(self.settings)
 
@@ -114,11 +126,9 @@ class ConfigManager:
         return conf.read_text(encoding="utf-8")
 
     def import_dhcpd_conf(self, content: str) -> DhcpConfig:
+        # Parse into the validated model and regenerate; the uploaded text is never written as-is.
         config = parse_dhcpd_conf(content)
-        self.settings.dhcpd_conf.write_text(content, encoding="utf-8")
-        validate_dhcpd_conf(self.settings.dhcpd_conf)
-        self.settings.config_json.write_text(config.model_dump_json(indent=2), encoding="utf-8")
-        reload_dhcp_service(self.settings)
+        self.save_config(config, apply=True)
         return config
 
     def export_dhcpd_conf(self) -> str:
@@ -129,26 +139,36 @@ class ConfigManager:
 
     def export_bundle(self) -> bytes:
         data_dir = self.settings.data_dir
-        data_dir.mkdir(parents=True, exist_ok=True)
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for path in sorted(data_dir.rglob("*")):
+            for name in BUNDLE_FILES:
+                path = data_dir / name
                 if path.is_file():
-                    archive.write(path, path.relative_to(data_dir).as_posix())
+                    archive.write(path, name)
         return buffer.getvalue()
 
     def import_bundle(self, zip_bytes: bytes) -> DhcpConfig:
-        data_dir = self.settings.data_dir
-        data_dir.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory() as tmp:
-            staging = Path(tmp)
-            _extract_data_zip(zip_bytes, staging)
-            if not (staging / "dhcpd.conf").is_file():
-                raise ValueError("Zip archive is missing dhcpd.conf")
-            _replace_directory_contents(data_dir, staging)
-        validate_dhcpd_conf(self.settings.dhcpd_conf)
-        reload_dhcp_service(self.settings)
+        members = _read_data_zip(zip_bytes)
+        if "dhcpd.conf" not in members:
+            raise ValueError("Zip archive is missing dhcpd.conf")
+        if "config.json" in members:
+            config = DhcpConfig.model_validate_json(members["config.json"])
+        else:
+            config = parse_dhcpd_conf(members["dhcpd.conf"].decode("utf-8"))
+        if "server.yaml" in members:
+            self._import_server_yaml(members["server.yaml"])
+        self.save_config(config, apply=True)
         return self.load_config()
+
+    def _import_server_yaml(self, raw: bytes) -> None:
+        try:
+            data = yaml.safe_load(raw.decode("utf-8")) or {}
+        except (yaml.YAMLError, UnicodeDecodeError) as exc:
+            raise ValueError("server.yaml in the zip is not valid YAML") from exc
+        name = data.get("name") if isinstance(data, dict) else None
+        if not isinstance(name, str) or not name.strip() or len(name) > 128:
+            raise ValueError("server.yaml in the zip must contain a short 'name'")
+        self.settings.server_yaml.write_text(yaml.safe_dump({"name": name.strip()}), encoding="utf-8")
 
 
 def _safe_zip_dest(root: Path, name: str) -> Path:
@@ -166,44 +186,61 @@ def _safe_zip_dest(root: Path, name: str) -> Path:
     return dest
 
 
-def _extract_data_zip(zip_bytes: bytes, dest_root: Path) -> None:
+def _read_data_zip(zip_bytes: bytes) -> dict[str, bytes]:
+    """Return the allowlisted top-level files of a bundle; every other member is ignored."""
     try:
         archive = zipfile.ZipFile(io.BytesIO(zip_bytes))
     except zipfile.BadZipFile as exc:
         raise ValueError("Invalid zip file") from exc
 
-    dest_root = dest_root.resolve()
+    check_root = Path("/bundle")
+    members: dict[str, bytes] = {}
+    total = 0
     with archive:
-        for info in archive.infolist():
+        infos = archive.infolist()
+        if len(infos) > MAX_BUNDLE_MEMBERS:
+            raise ValueError("Zip archive has too many entries")
+        for info in infos:
             name = info.filename.replace("\\", "/")
-            if info.is_dir() or name.endswith("/"):
-                _safe_zip_dest(dest_root, name.rstrip("/"))
+            _safe_zip_dest(check_root, name.rstrip("/"))
+            if info.is_dir() or name not in BUNDLE_FILES:
                 continue
-            dest = _safe_zip_dest(dest_root, name)
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            with archive.open(info) as src, dest.open("wb") as out:
-                shutil.copyfileobj(src, out)
+            # Read at most the remaining budget + 1 byte so a zip bomb can't exhaust memory.
+            with archive.open(info) as src:
+                data = src.read(MAX_BUNDLE_BYTES - total + 1)
+            total += len(data)
+            if total > MAX_BUNDLE_BYTES:
+                raise ValueError("Zip archive is too large")
+            members[name] = data
+    return members
 
 
-def _replace_directory_contents(target: Path, source: Path) -> None:
-    for entry in target.iterdir():
-        if entry.is_dir():
-            shutil.rmtree(entry)
-        else:
-            entry.unlink()
-    for entry in source.iterdir():
-        dest = target / entry.name
-        if entry.is_dir():
-            shutil.copytree(entry, dest)
-        else:
-            shutil.copy2(entry, dest)
+def _send_ctl(settings: Settings, command: str) -> bool:
+    """Ask the root-side dui-ctl service to act. Returns False when it doesn't exist (local dev).
+
+    The API runs unprivileged inside the container; this one-way FIFO is its only way to steer
+    dhcpd or PID 1, and dui-ctl acts only on a fixed set of command words.
+    """
+    fifo = settings.ctl_fifo
+    if not fifo.exists():
+        return False
+    try:
+        fd = os.open(fifo, os.O_WRONLY | os.O_NONBLOCK)
+    except OSError as exc:
+        raise RuntimeError("dui-ctl service is not running") from exc
+    try:
+        os.write(fd, f"{command}\n".encode())
+    finally:
+        os.close(fd)
+    return True
 
 
 def reload_dhcp_service(settings: Settings) -> None:
+    if _send_ctl(settings, "dhcp-reload"):
+        return
     service = settings.s6_dhcpd_service
-    s6_svc = "/command/s6-svc"
     if service.exists():
-        subprocess.run([s6_svc, "-h", str(service)], check=False)
+        subprocess.run(["/command/s6-svc", "-h", str(service)], check=False)
         return
     # Fallback for local dev without s6
     subprocess.run(["pkill", "-HUP", "dhcpd"], check=False)
@@ -229,13 +266,14 @@ def dhcp_service_status(settings: Settings) -> dict[str, str | bool]:
 
 
 def control_dhcp_service(settings: Settings, action: str) -> None:
-    service = settings.s6_dhcpd_service
-    s6_svc = "/command/s6-svc"
     flag = {"start": "-u", "stop": "-d", "restart": "-t"}.get(action)
     if not flag:
         raise ValueError(f"Unknown action: {action}")
+    if _send_ctl(settings, f"dhcp-{action}"):
+        return
+    service = settings.s6_dhcpd_service
     if service.exists():
-        subprocess.run([s6_svc, flag, str(service)], check=True)
+        subprocess.run(["/command/s6-svc", flag, str(service)], check=True)
         return
     if action == "stop":
         subprocess.run(["pkill", "-x", "dhcpd"], check=False)
@@ -270,8 +308,10 @@ def _start_dhcpd_process(settings: Settings) -> None:
 
 
 def stop_container() -> None:
-    os.kill(1, signal.SIGTERM)
+    if not _send_ctl(get_settings(), "container-stop"):
+        os.kill(1, signal.SIGTERM)
 
 
 def restart_container() -> None:
-    os.kill(1, signal.SIGINT)
+    if not _send_ctl(get_settings(), "container-restart"):
+        os.kill(1, signal.SIGINT)

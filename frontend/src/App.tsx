@@ -7,6 +7,7 @@ import { Logo } from './components/Logo'
 import type { User } from './api/types'
 import { AppLayout } from './layouts/AppLayout'
 import { LoginPage } from './pages/LoginPage'
+import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { LeasesPage } from './pages/LeasesPage'
 import { LogsPage } from './pages/LogsPage'
@@ -58,14 +59,20 @@ export default function App() {
   useEffect(() => {
     api
       .me()
-      .then((current) => {
-        setUser(current)
-        return api.dashboard()
-      })
-      .then((dashboard) => setServerName(dashboard.server_name))
+      .then((current) => setUser(current))
       .catch(() => setUser(null))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    // Everything but /me and /password is locked until a one-time password is replaced.
+    if (user && !user.must_change_password) {
+      api
+        .dashboard()
+        .then((dashboard) => setServerName(dashboard.server_name))
+        .catch(() => undefined)
+    }
+  }, [user?.must_change_password])
 
   if (loading) {
     return (
@@ -78,6 +85,9 @@ export default function App() {
   return (
     <AuthContext.Provider value={{ user, setUser, isAdmin: user?.role === 'admin' }}>
       <ConfirmProvider>
+        {user?.must_change_password ? (
+          <ChangePasswordPage forced />
+        ) : (
         <Routes>
           <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
           <Route
@@ -94,6 +104,7 @@ export default function App() {
             <Route path="configure/clients" element={<ClientsPage />} />
             <Route path="configure/options" element={<OptionsPage />} />
             <Route path="configure/snapshots" element={<SnapshotsPage />} />
+            <Route path="account/password" element={<ChangePasswordPage />} />
             <Route path="admin" element={<AdminPage />} />
             <Route path="admin/users" element={<UsersPage />} />
             <Route
@@ -107,6 +118,7 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        )}
       </ConfirmProvider>
     </AuthContext.Provider>
   )

@@ -136,7 +136,11 @@ def parse_dhcpd_conf(content: str) -> DhcpConfig:
                 )
             i += 1
             continue
-        if not line.endswith("{") and not line.endswith("}"):
+        if line.endswith("{"):
+            # on commit/class/key/group/shared-network/... cannot be represented (and some can
+            # run commands), so refuse them instead of silently flattening their contents.
+            raise ValueError(f"Unsupported dhcpd.conf block: {line}")
+        if not line.endswith("}"):
             option_definitions.append(line.rstrip(";") + ";")
         i += 1
 

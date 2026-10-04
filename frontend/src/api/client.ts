@@ -5,6 +5,7 @@ import type {
   ServerInfo,
   Snapshot,
   SubnetUsage,
+  PasswordPolicy,
   User,
 } from './types'
 
@@ -34,7 +35,17 @@ async function errorDetail(response: Response): Promise<string> {
   let detail = response.statusText
   try {
     const data = await response.json()
-    detail = data.detail || JSON.stringify(data)
+    if (Array.isArray(data.detail)) {
+      // FastAPI validation errors: [{ loc, msg }, ...]
+      detail = data.detail
+        .map((item: { loc?: unknown[]; msg?: string }) => {
+          const field = item.loc?.filter((part) => part !== 'body').join('.')
+          return field ? `${field}: ${item.msg}` : item.msg
+        })
+        .join('; ')
+    } else {
+      detail = data.detail || JSON.stringify(data)
+    }
   } catch {
     detail = await response.text()
   }
@@ -76,11 +87,24 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.text() as T
 }
 
+interface SessionResponse {
+  username: string
+  role: string
+  csrf_token: string
+  must_change_password: boolean
+}
+
 export const api = {
   login(username: string, password: string) {
-    return request<{ username: string; role: string; csrf_token: string }>('/api/auth/login', {
+    return request<SessionResponse>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
+    })
+  },
+  changePassword(current_password: string, new_password: string) {
+    return request<SessionResponse>('/api/auth/password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password, new_password }),
     })
   },
   logout() {
@@ -203,6 +227,15 @@ export const api = {
   },
   containerRestart() {
     return request<{ status: string }>('/api/admin/container/restart', { method: 'POST' })
+  },
+  passwordPolicy() {
+    return request<PasswordPolicy>('/api/auth/password-policy')
+  },
+  updatePasswordPolicy(policy: PasswordPolicy) {
+    return request<PasswordPolicy>('/api/auth/password-policy', {
+      method: 'PUT',
+      body: JSON.stringify(policy),
+    })
   },
   listUsers() {
     return request<{ users: User[] }>('/api/auth/users')

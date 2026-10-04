@@ -39,6 +39,8 @@ async def restore_snapshot(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except DhcpValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Snapshot contains invalid configuration: {exc}") from exc
     return {"status": "restored", "snapshot_id": snapshot_id}
 
 

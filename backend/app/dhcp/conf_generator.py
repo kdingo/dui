@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
 from .cidr import cidr_to_dhcpd
-from .models import DhcpConfig
+from .models import _UNSAFE_STRING_RE, DhcpConfig
 
 GLOBAL_DIRECTIVES = {
     "default-lease-time",
@@ -31,8 +30,11 @@ def _format_option_value(value: Any) -> str:
     if isinstance(value, str):
         if re.match(r"^[\d.]+$", value):
             return value
+        # Models already reject these; refuse here too so nothing can escape the quoted string.
+        if _UNSAFE_STRING_RE.search(value):
+            raise ValueError(f"unsafe option value {value!r}")
         return f'"{value}"'
-    return json.dumps(value)
+    raise ValueError(f"unsupported option value {value!r}")
 
 
 def _write_options(lines: list[str], options: dict[str, Any], indent: str = "  ") -> None:

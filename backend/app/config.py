@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     session_ttl_hours: int = 24
     login_rate_limit: int = 5
     login_rate_window_seconds: int = 900
+    # The container entrypoint turns this on whenever nginx serves TLS.
+    secure_cookies: bool = False
 
     @property
     def snapshots_dir(self) -> Path:
@@ -27,7 +29,8 @@ class Settings(BaseSettings):
 
     @property
     def dhcpd_leases(self) -> Path:
-        return self.data_dir / "dhcpd.leases"
+        # Own directory so the unprivileged dhcpd user can rewrite it without write access to /data.
+        return self.data_dir / "leases" / "dhcpd.leases"
 
     @property
     def config_json(self) -> Path:
@@ -42,6 +45,10 @@ class Settings(BaseSettings):
         return self.users_file or (self.data_dir / "users.yaml")
 
     @property
+    def password_policy_yaml(self) -> Path:
+        return self.data_dir / "password_policy.yaml"
+
+    @property
     def session_secret_file(self) -> Path:
         return self.data_dir / "session.secret"
 
@@ -52,6 +59,11 @@ class Settings(BaseSettings):
     @property
     def s6_dhcpd_service(self) -> Path:
         return Path("/run/service/dhcpd")
+
+    @property
+    def ctl_fifo(self) -> Path:
+        """Command channel to the root-side dui-ctl service (see docker/s6-rc.d/dui-ctl)."""
+        return Path("/run/dui-ctl/cmd")
 
 
 @lru_cache

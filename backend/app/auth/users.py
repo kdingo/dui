@@ -4,6 +4,7 @@ import secrets
 import time
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 import bcrypt
@@ -12,6 +13,11 @@ from fastapi import HTTPException, Request, status
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from ..config import Settings, get_settings
+from ..fileutil import write_private_text
+
+TRUSTED_PROXIES = {"127.0.0.1", "::1"}
+MAX_PASSWORD_LENGTH = 72  # bcrypt ignores bytes beyond 72
+USERNAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$"
 
 
 @dataclass
@@ -19,6 +25,18 @@ class UserRecord:
     username: str
     password_hash: str
     role: str
+    session_version: int = 0
+    must_change_password: bool = False
+
+
+def _record_from_entry(user: dict[str, Any]) -> UserRecord:
+    return UserRecord(
+        username=user["username"],
+        password_hash=user["password_hash"],
+        role=user.get("role", "viewer"),
+        session_version=int(user.get("session_version", 0)),
+        must_change_password=bool(user.get("must_change_password", False)),
+    )
 
 
 class UserStore:
@@ -42,26 +60,22 @@ class UserStore:
         data = self.load()
         for user in data.get("users", []):
             if user.get("username") == username:
-                return UserRecord(
-                    username=user["username"],
-                    password_hash=user["password_hash"],
-                    role=user.get("role", "viewer"),
-                )
+                return _record_from_entry(user)
         return None
 
     def verify_password(self, username: str, password: str) -> UserRecord | None:
         user = self.get_user(username)
-        if not user:
-            return None
-        if bcrypt.checkpw(password.encode(), user.password_hash.encode()):
+        # Always run bcrypt so response timing doesn't reveal whether the username exists.
+        password_hash = user.password_hash if user else _dummy_hash()
+        if bcrypt.checkpw(password.encode(), password_hash.encode()) and user:
             return user
         return None
 
-    def _persist_users(self, data: dict[str, Any], users: list[dict[str, str]]) -> None:
+    def _persist_users(self, data: dict[str, Any], users: list[dict[str, Any]]) -> None:
         if not any(u.get("role", "viewer") == "admin" for u in users):
             raise HTTPException(status_code=400, detail="At least one admin user is required")
         data["users"] = users
-        self.settings.users_yaml.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+        write_private_text(self.settings.users_yaml, yaml.safe_dump(data, sort_keys=False))
 
     def save_users(self, users: list[dict[str, str]], password_hashes: dict[str, str] | None = None) -> None:
         data = self.load()
@@ -70,17 +84,24 @@ class UserStore:
         for user in users:
             username = user["username"]
             existing = existing_by_name.get(username)
-            entry = {"username": username, "role": user.get("role", "viewer")}
+            role = user.get("role", "viewer")
+            entry: dict[str, Any] = {"username": username, "role": role}
             if password_hashes and username in password_hashes:
                 entry["password_hash"] = password_hashes[username]
             elif existing:
                 entry["password_hash"] = existing["password_hash"]
             else:
                 raise HTTPException(status_code=400, detail=f"Missing password for new user {username}")
+            version = int(existing.get("session_version", 0)) if existing else 0
+            if existing and (entry["password_hash"] != existing["password_hash"] or role != existing.get("role", "viewer")):
+                version += 1
+            entry["session_version"] = version
+            if existing and existing.get("must_change_password"):
+                entry["must_change_password"] = True
             updated.append(entry)
         self._persist_users(data, updated)
 
-    def create_user(self, username: str, password: str, role: str) -> None:
+    def create_user(self, username: str, password: str, role: str, must_change_password: bool = False) -> None:
         username = username.strip()
         if not username:
             raise HTTPException(status_code=400, detail="Username is required")
@@ -90,13 +111,15 @@ class UserStore:
         users = list(data.get("users") or [])
         if any(u.get("username") == username for u in users):
             raise HTTPException(status_code=400, detail=f"User {username} already exists")
-        users.append(
-            {
-                "username": username,
-                "role": role,
-                "password_hash": hash_password(password),
-            }
-        )
+        entry: dict[str, Any] = {
+            "username": username,
+            "role": role,
+            "password_hash": hash_password(password),
+            "session_version": 0,
+        }
+        if must_change_password:
+            entry["must_change_password"] = True
+        users.append(entry)
         self._persist_users(data, users)
 
     def update_user(self, username: str, role: str | None = None, password: str | None = None) -> None:
@@ -107,14 +130,45 @@ class UserStore:
             if user.get("username") != username:
                 continue
             found = True
-            if role is not None:
+            changed = False
+            if role is not None and role != user.get("role", "viewer"):
                 user["role"] = role
+                changed = True
             if password:
                 user["password_hash"] = hash_password(password)
+                changed = True
+            if changed:
+                user["session_version"] = int(user.get("session_version", 0)) + 1
             break
         if not found:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         self._persist_users(data, users)
+
+    def change_own_password(self, username: str, current_password: str, new_password: str) -> UserRecord:
+        if not self.verify_password(username, current_password):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+        if current_password == new_password:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must differ from the current one")
+        data = self.load()
+        users = list(data.get("users") or [])
+        for user in users:
+            if user.get("username") == username:
+                user["password_hash"] = hash_password(new_password)
+                user["session_version"] = int(user.get("session_version", 0)) + 1
+                user.pop("must_change_password", None)
+                self._persist_users(data, users)
+                return _record_from_entry(user)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    def bump_session_version(self, username: str) -> None:
+        """Invalidate every outstanding session for ``username``."""
+        data = self.load()
+        users = list(data.get("users") or [])
+        for user in users:
+            if user.get("username") == username:
+                user["session_version"] = int(user.get("session_version", 0)) + 1
+                self._persist_users(data, users)
+                return
 
     def delete_user(self, username: str) -> None:
         data = self.load()
@@ -126,26 +180,46 @@ class UserStore:
 
 
 class LoginRateLimiter:
-    def __init__(self, max_attempts: int = 5, window_seconds: int = 900):
+    def __init__(self, max_attempts: int = 5, window_seconds: int = 900, max_keys: int = 10_000):
         self.max_attempts = max_attempts
         self.window_seconds = window_seconds
+        self.max_keys = max_keys
         self._attempts: dict[str, list[float]] = defaultdict(list)
 
-    def check(self, key: str) -> None:
-        now = time.time()
-        attempts = [t for t in self._attempts[key] if now - t < self.window_seconds]
-        self._attempts[key] = attempts
-        if len(attempts) >= self.max_attempts:
+    def _recent(self, key: str, now: float) -> list[float]:
+        attempts = [t for t in self._attempts.get(key, []) if now - t < self.window_seconds]
+        if attempts:
+            self._attempts[key] = attempts
+        else:
+            self._attempts.pop(key, None)
+        return attempts
+
+    def check(self, key: str, max_attempts: int | None = None) -> None:
+        limit = max_attempts or self.max_attempts
+        if len(self._recent(key, time.time())) >= limit:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many login attempts. Try again later.",
             )
 
     def record_failure(self, key: str) -> None:
-        self._attempts[key].append(time.time())
+        now = time.time()
+        if len(self._attempts) >= self.max_keys:
+            self._prune(now)
+        self._attempts[key].append(now)
 
     def reset(self, key: str) -> None:
         self._attempts.pop(key, None)
+
+    def _prune(self, now: float) -> None:
+        for key in list(self._attempts):
+            self._recent(key, now)
+        # Still full of live entries: drop the oldest keys rather than grow without bound.
+        overflow = len(self._attempts) - self.max_keys + 1
+        if overflow > 0:
+            oldest = sorted(self._attempts, key=lambda k: self._attempts[k][-1])[:overflow]
+            for key in oldest:
+                self._attempts.pop(key, None)
 
 
 class SessionManager:
@@ -156,7 +230,7 @@ class SessionManager:
     def _secret(self) -> str:
         path = self.settings.session_secret_file
         if not path.exists():
-            path.write_text(secrets.token_hex(32), encoding="utf-8")
+            write_private_text(path, secrets.token_hex(32))
         return path.read_text(encoding="utf-8").strip()
 
     @property
@@ -165,10 +239,10 @@ class SessionManager:
             self._serializer = URLSafeTimedSerializer(self._secret(), salt="dui-session")
         return self._serializer
 
-    def create_session_token(self, username: str, role: str) -> str:
-        return self.serializer.dumps({"username": username, "role": role})
+    def create_session_token(self, username: str, session_version: int) -> str:
+        return self.serializer.dumps({"username": username, "ver": session_version})
 
-    def load_session(self, token: str) -> dict[str, str]:
+    def load_session(self, token: str) -> dict[str, Any]:
         max_age = self.settings.session_ttl_hours * 3600
         try:
             return self.serializer.loads(token, max_age=max_age)
@@ -182,10 +256,16 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
+@lru_cache
+def _dummy_hash() -> str:
+    return hash_password(secrets.token_hex(16))
+
+
 def get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return "unknown"
+    peer = request.client.host if request.client else "unknown"
+    # Only nginx (on loopback) may vouch for the client address; X-Forwarded-For is client-controlled.
+    if peer in TRUSTED_PROXIES:
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip.strip()
+    return peer

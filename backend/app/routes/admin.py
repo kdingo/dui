@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import logging
+
 import yaml
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..auth.deps import get_current_user, require_admin, verify_csrf
 from ..config import get_settings
@@ -14,6 +16,7 @@ from ..dhcp.manager import (
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/server")
@@ -32,7 +35,7 @@ async def get_server_info(_: dict[str, str] = Depends(get_current_user)) -> dict
 
 
 class ServerNameUpdate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=128)
 
 
 @router.put("/server")
@@ -62,7 +65,8 @@ async def dhcp_control(
     try:
         control_dhcp_service(get_settings(), action)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("dhcp %s failed", action)
+        raise HTTPException(status_code=500, detail=f"Failed to {action} dhcpd") from exc
     return {"status": action}
 
 

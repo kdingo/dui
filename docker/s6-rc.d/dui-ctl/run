@@ -1,0 +1,31 @@
+#!/command/with-contenv bash
+# Root-side half of a one-way command channel. The API runs as the unprivileged `dui` user and
+# writes one word per line; only the words below are acted on and nothing is passed to a shell.
+FIFO_DIR=/run/dui-ctl
+FIFO="$FIFO_DIR/cmd"
+SERVICE=/run/service/dhcpd
+mkdir -p "$FIFO_DIR"
+chown root:dui "$FIFO_DIR"
+chmod 0710 "$FIFO_DIR"
+[ -p "$FIFO" ] || mkfifo "$FIFO"
+chown root:dui "$FIFO"
+chmod 0620 "$FIFO"
+# Let the API read dhcpd's status (s6-svstat) without being able to control it directly.
+for _ in $(seq 50); do
+  [ -d "$SERVICE/supervise" ] && break
+  sleep 0.2
+done
+/command/s6-svperms -g dui "$SERVICE"
+# Hold the FIFO open read-write so reads never hit EOF between writers.
+exec 3<>"$FIFO"
+while IFS= read -r cmd <&3; do
+  case "$cmd" in
+    dhcp-start)        /command/s6-svc -u "$SERVICE" ;;
+    dhcp-stop)         /command/s6-svc -d "$SERVICE" ;;
+    dhcp-restart)      /command/s6-svc -t "$SERVICE" ;;
+    dhcp-reload)       /command/s6-svc -h "$SERVICE" ;;
+    container-stop)    kill -TERM 1 ;;
+    container-restart) kill -INT 1 ;;
+    *)                 echo "dui-ctl: ignoring unknown command" >&2 ;;
+  esac
+done

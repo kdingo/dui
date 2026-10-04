@@ -23,7 +23,11 @@ export function LoginPage() {
     try {
       const result = await api.login(username, password)
       setCsrfToken(result.csrf_token)
-      setUser({ username: result.username, role: result.role as 'admin' | 'viewer' })
+      setUser({
+        username: result.username,
+        role: result.role as 'admin' | 'viewer',
+        must_change_password: result.must_change_password,
+      })
       navigate(state?.from || '/', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
