@@ -34,7 +34,7 @@ docker compose up -d --build
 docker compose logs dui | grep "DUI login"
 ```
 
-The UI uses a self-signed certificate by default, so your browser will warn about it once. To use your own certificate, set `DUI_TLS_CERT` and `DUI_TLS_KEY` to files mounted into the container.
+The UI uses a self-signed certificate by default, so your browser will warn about it once. To avoid the warning, [use your own certificate](#using-your-own-certificate).
 
 Lost the admin password? Issue a new one-time password:
 
@@ -62,6 +62,29 @@ docker compose exec dui python3 -m app.auth.cli reset-password admin
 | `DUI_TLS_CERT` / `DUI_TLS_KEY` | self-signed in `/data/tls` | Your own certificate and key |
 | `DUI_BIND_ADDRESS` | all addresses | Listen only on this address, such as a management IP |
 | `DUI_ADMIN_PASSWORD` | random, printed once | First-start admin password |
+
+### Using your own certificate
+
+Mount the folder that holds your certificate and key into the container, then point `DUI_TLS_CERT` and `DUI_TLS_KEY` at the files' paths **inside the container**:
+
+```yaml
+    volumes:
+      - dui-data:/data
+      - /etc/ssl/dui:/certs:ro
+    environment:
+      DUI_TLS: "true"
+      DUI_TLS_CERT: /certs/fullchain.pem
+      DUI_TLS_KEY: /certs/privkey.pem
+```
+
+- Both files must be PEM. The key must not have a passphrase.
+- The certificate file must contain the full chain: your server certificate followed by any intermediate certificates. With Let's Encrypt, use `fullchain.pem`, not `cert.pem`.
+- Mount the files outside `/data`. On every start, the entrypoint re-owns `/data` for the API user. That would make a read-only mount fail at startup, and on a writable mount it would expose your key to the API user.
+- The files only need to be readable by root.
+- If either file is missing, the container stops with `DUI_TLS_CERT/DUI_TLS_KEY point to missing files` instead of falling back to the self-signed certificate.
+- nginx reads the certificate only at startup. After you renew it, run `docker compose restart dui`.
+
+Without these variables, DUI generates a self-signed certificate in `/data/tls` on first start and keeps reusing it. To create a new one (for example, after changing `DUI_SERVER_NAME`), delete `/data/tls` and restart the container.
 
 ## Volume layout
 
