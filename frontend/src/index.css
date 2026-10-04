@@ -6,83 +6,94 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #060a13;
-  --blob-1: rgba(34, 211, 238, 0.32);
-  --blob-2: rgba(139, 92, 246, 0.34);
-  --blob-3: rgba(59, 130, 246, 0.3);
-  --blob-4: rgba(236, 72, 153, 0.18);
+  /* Palette drawn from the logo: amber liquid, copper shade, cream glass, charcoal outline */
+  --bg: #0e0c09;
+  --blob-1: rgba(224, 160, 68, 0.3);
+  --blob-2: rgba(184, 118, 45, 0.28);
+  --blob-3: rgba(245, 199, 110, 0.16);
+  --blob-4: rgba(150, 70, 30, 0.22);
   --noise-opacity: 0.05;
 
-  --glass: rgba(255, 255, 255, 0.045);
-  --glass-strong: rgba(255, 255, 255, 0.08);
-  --glass-hover: rgba(255, 255, 255, 0.12);
-  --glass-chrome: rgba(13, 18, 30, 0.55);
-  --input-bg: rgba(255, 255, 255, 0.04);
-  --track: rgba(255, 255, 255, 0.08);
+  --glass: rgba(255, 244, 225, 0.05);
+  --glass-strong: rgba(255, 244, 225, 0.08);
+  --glass-hover: rgba(255, 244, 225, 0.12);
+  --glass-chrome: rgba(22, 18, 13, 0.6);
+  --input-bg: rgba(255, 244, 225, 0.04);
+  --track: rgba(255, 244, 225, 0.08);
 
-  --stroke: rgba(255, 255, 255, 0.1);
-  --stroke-strong: rgba(255, 255, 255, 0.18);
-  --stroke-hi: rgba(255, 255, 255, 0.14);
+  --stroke: rgba(255, 240, 215, 0.1);
+  --stroke-strong: rgba(255, 240, 215, 0.18);
+  --stroke-hi: rgba(255, 244, 225, 0.14);
 
-  --text: #e8edf6;
-  --muted: #8d9ab0;
-  --heading: #ffffff;
+  --text: #f3ece0;
+  --muted: #a89a85;
+  --heading: #fffaf1;
 
-  --accent: #38bdf8;
-  --accent-grad: linear-gradient(135deg, #0ea5e9 0%, #6366f1 55%, #a855f7 100%);
-  --accent-glow: rgba(99, 102, 241, 0.55);
-  --accent-ring: rgba(56, 189, 248, 0.35);
+  --accent: #edb257;
+  --accent-grad: linear-gradient(135deg, #f5c76e 0%, #e0a044 55%, #b8762d 100%);
+  --accent-glow: rgba(224, 160, 68, 0.45);
+  --accent-ring: rgba(237, 178, 87, 0.35);
+  --on-accent: #241a0e;
 
-  --danger: #f87171;
-  --danger-solid: #dc2626;
-  --success: #34d399;
-  --warn: #fbbf24;
+  --danger: #f28b78;
+  --danger-solid: #c0392b;
+  --success: #7fc79a;
+  --warn: #f0a35c;
 
-  --shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.7);
+  --logo-halo: rgba(241, 232, 216, 0.92);
+  --logo-glow: drop-shadow(0 2px 10px rgba(224, 160, 68, 0.35));
+
+  --shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.75);
   --shadow-lg: 0 30px 80px -24px rgba(0, 0, 0, 0.85);
-  --log-bg: rgba(2, 6, 15, 0.65);
-  --backdrop: rgba(3, 6, 14, 0.55);
+  --log-bg: rgba(10, 8, 5, 0.7);
+  --log-text: #e6dccb;
+  --backdrop: rgba(8, 6, 3, 0.55);
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --bg: #eef2f9;
-  --blob-1: rgba(56, 189, 248, 0.42);
-  --blob-2: rgba(167, 139, 250, 0.45);
-  --blob-3: rgba(94, 234, 212, 0.38);
-  --blob-4: rgba(244, 114, 182, 0.3);
+  --bg: #ece5d6;
+  --blob-1: rgba(237, 178, 87, 0.4);
+  --blob-2: rgba(255, 250, 240, 0.7);
+  --blob-3: rgba(184, 118, 45, 0.22);
+  --blob-4: rgba(245, 199, 110, 0.35);
   --noise-opacity: 0.035;
 
-  --glass: rgba(255, 255, 255, 0.5);
-  --glass-strong: rgba(255, 255, 255, 0.68);
-  --glass-hover: rgba(255, 255, 255, 0.85);
-  --glass-chrome: rgba(255, 255, 255, 0.55);
-  --input-bg: rgba(255, 255, 255, 0.65);
-  --track: rgba(15, 23, 42, 0.08);
+  --glass: rgba(255, 252, 245, 0.5);
+  --glass-strong: rgba(255, 252, 245, 0.7);
+  --glass-hover: rgba(255, 252, 245, 0.88);
+  --glass-chrome: rgba(255, 251, 243, 0.58);
+  --input-bg: rgba(255, 252, 245, 0.7);
+  --track: rgba(38, 41, 43, 0.08);
 
-  --stroke: rgba(15, 23, 42, 0.09);
-  --stroke-strong: rgba(15, 23, 42, 0.16);
-  --stroke-hi: rgba(255, 255, 255, 0.95);
+  --stroke: rgba(38, 41, 43, 0.1);
+  --stroke-strong: rgba(38, 41, 43, 0.18);
+  --stroke-hi: rgba(255, 253, 248, 0.95);
 
-  --text: #0f172a;
-  --muted: #55657d;
-  --heading: #0b1222;
+  --text: #26292b;
+  --muted: #6e6457;
+  --heading: #1d1f20;
 
-  --accent: #0284c7;
-  --accent-grad: linear-gradient(135deg, #0284c7 0%, #4f46e5 55%, #9333ea 100%);
-  --accent-glow: rgba(79, 70, 229, 0.4);
-  --accent-ring: rgba(2, 132, 199, 0.28);
+  --accent: #a8661f;
+  --accent-grad: linear-gradient(135deg, #f5c76e 0%, #e0a044 55%, #b8762d 100%);
+  --accent-glow: rgba(184, 118, 45, 0.38);
+  --accent-ring: rgba(184, 118, 45, 0.28);
+  --on-accent: #241a0e;
 
-  --danger: #dc2626;
-  --danger-solid: #dc2626;
-  --success: #059669;
-  --warn: #d97706;
+  --danger: #b42318;
+  --danger-solid: #b42318;
+  --success: #3f7d4e;
+  --warn: #b45309;
 
-  --shadow: 0 18px 40px -22px rgba(30, 41, 80, 0.35);
-  --shadow-lg: 0 30px 80px -24px rgba(30, 41, 80, 0.45);
-  --log-bg: rgba(10, 15, 28, 0.88);
-  --backdrop: rgba(226, 232, 245, 0.45);
+  --logo-halo: transparent;
+  --logo-glow: none;
+
+  --shadow: 0 18px 40px -22px rgba(74, 52, 24, 0.35);
+  --shadow-lg: 0 30px 80px -24px rgba(74, 52, 24, 0.45);
+  --log-bg: rgba(28, 23, 17, 0.9);
+  --log-text: #e6dccb;
+  --backdrop: rgba(236, 229, 214, 0.45);
 }
 
 :root {
@@ -343,15 +354,10 @@ h3 {
   padding: 0.25rem 0.6rem 1.25rem;
 }
 
-.brand-mark {
+.logo {
   flex: none;
-  width: 26px;
-  height: 26px;
-  border-radius: 9px;
-  background: var(--accent-grad);
-  box-shadow:
-    0 4px 18px -4px var(--accent-glow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  display: block;
+  filter: var(--logo-glow);
 }
 
 .sidebar h1 {
@@ -472,7 +478,7 @@ h3 {
   height: 28px;
   border-radius: 50%;
   background: var(--accent-grad);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 0.78rem;
   font-weight: 700;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
@@ -554,7 +560,7 @@ button:not(:disabled):active {
 }
 
 button.primary {
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent-grad);
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow:
@@ -841,13 +847,13 @@ td button.danger {
 }
 
 .utilization.warn > span {
-  background: linear-gradient(90deg, #f59e0b, #f97316);
-  box-shadow: 0 0 12px rgba(249, 115, 22, 0.5);
+  background: linear-gradient(90deg, #e07b39, #d9572b);
+  box-shadow: 0 0 12px rgba(217, 87, 43, 0.5);
 }
 
 .utilization.crit > span {
-  background: linear-gradient(90deg, #f97316, #ef4444);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.55);
+  background: linear-gradient(90deg, #d9572b, #c0392b);
+  box-shadow: 0 0 12px rgba(192, 57, 43, 0.55);
 }
 
 .status-dot {
@@ -907,7 +913,7 @@ td button.danger {
 }
 
 .tabs button.active {
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .tab-pill {
@@ -960,7 +966,7 @@ td button.danger {
 
 .log-viewer {
   background: var(--log-bg);
-  color: #cbd5e1;
+  color: var(--log-text);
   padding: 1rem 1.15rem;
   border-radius: var(--radius);
   font-family: var(--mono);
@@ -1058,11 +1064,8 @@ td button.danger {
     var(--shadow-lg);
 }
 
-.login-card .brand-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
-  margin-bottom: 1.1rem;
+.login-logo {
+  margin-bottom: 1rem;
 }
 
 .login-card h2 {
@@ -1090,28 +1093,6 @@ td button.danger {
   place-items: center;
 }
 
-.boot-orb {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  background: var(--accent-grad);
-  box-shadow: 0 0 40px var(--accent-glow);
-  animation: breathe 1.4s ease-in-out infinite;
-}
-
-@keyframes breathe {
-  0%,
-  100% {
-    transform: scale(0.88) rotate(0deg);
-    opacity: 0.7;
-    border-radius: 16px;
-  }
-  50% {
-    transform: scale(1) rotate(45deg);
-    opacity: 1;
-    border-radius: 50%;
-  }
-}
 
 /* ------------------------------------------------------------------ */
 /* Responsive                                                          */
@@ -1167,8 +1148,7 @@ td button.danger {
 
 @media (prefers-reduced-motion: reduce) {
   .liquid-bg i,
-  .status-dot.on,
-  .boot-orb {
+  .status-dot.on {
     animation: none;
   }
 

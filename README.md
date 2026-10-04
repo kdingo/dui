@@ -1,3 +1,5 @@
+<img src="docs/logo.jpg" alt="DUI logo" width="96" align="right" />
+
 # DHCP UI (DUI)
 
 DUI is a Dockerized home-network DHCP server with a web management interface. It runs ISC `dhcpd` and a FastAPI + React UI in a single Debian bookworm-slim container.

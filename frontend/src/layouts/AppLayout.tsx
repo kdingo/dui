@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { Logo } from '../components/Logo'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { EASE_OUT, PILL_SPRING } from '../lib/motion'
 
@@ -39,7 +40,7 @@ export function AppLayout({ serverName }: AppLayoutProps) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true" />
+          <Logo size={30} />
           <h1>{serverName}</h1>
         </div>
         <nav>

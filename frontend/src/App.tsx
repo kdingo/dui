@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { api, setCsrfToken, setUnauthorizedHandler } from './api/client'
 import { AuthContext } from './auth/AuthContext'
 import { ConfirmProvider } from './components/ConfirmDialog'
+import { Logo } from './components/Logo'
 import type { User } from './api/types'
 import { AppLayout } from './layouts/AppLayout'
 import { LoginPage } from './pages/LoginPage'
@@ -69,7 +70,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="boot" role="status" aria-label="Loading">
-        <div className="boot-orb" />
+        <Logo size={64} fill="loop" />
       </div>
     )
   }

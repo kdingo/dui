@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { api, setCsrfToken } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Flash } from '../components/Flash'
+import { Logo } from '../components/Logo'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { POP_SPRING } from '../lib/motion'
 
@@ -38,7 +39,7 @@ export function LoginPage() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={POP_SPRING}
       >
-        <div className="brand-mark" aria-hidden="true" />
+        <Logo size={56} fill="once" className="login-logo" />
         <h2>DHCP UI</h2>
         <p className="muted">Sign in to manage your DHCP server.</p>
         <Flash kind="error" message={state?.expired ? 'Your session has expired. Please sign in again.' : ''} />
