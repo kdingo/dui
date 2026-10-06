@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { DhcpConfig, DhcpSubnet } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
@@ -37,6 +37,7 @@ export function NetworksPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const confirm = useConfirm()
+  const autoRouter = useRef('')
 
   const preview = useMemo(
     () => ipv4NetworkPreview(form.address, form.prefix),
@@ -61,12 +62,25 @@ export function NetworksPage() {
     })
   }, [preview?.cidr])
 
+  // When adding, default the router to the first host, unless the user has typed their own.
+  useEffect(() => {
+    if (!preview || editingId) return
+    const suggested = intToIPv4(preview.firstHost)
+    setForm((current) => {
+      const router = routersList(current.options.routers)[0] || ''
+      if (router && router !== autoRouter.current) return current
+      autoRouter.current = suggested
+      return { ...current, options: { routers: [suggested] } }
+    })
+  }, [preview?.cidr])
+
   const rangeStart = parseIPv4(form.range.start) ?? preview?.firstHost ?? 0
   const rangeEnd = parseIPv4(form.range.end) ?? preview?.lastHost ?? 0
 
   function resetForm() {
     setForm(emptySubnet)
     setEditingId(null)
+    autoRouter.current = ''
   }
 
   async function handleSubmit(event: FormEvent) {
