@@ -752,6 +752,25 @@ input[type='file']::file-selector-button:hover {
   color: var(--muted);
 }
 
+.form-grid .duration-field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 0.85rem;
+}
+
+.form-grid .duration-field legend {
+  grid-column: 1 / -1;
+  padding: 0;
+  margin-bottom: 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 520;
+  color: var(--muted);
+}
+
 .form-grid h3 {
   margin: 0 0 0.25rem;
 }

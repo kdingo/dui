@@ -17,6 +17,65 @@ function splitList(value: string): string[] {
     .filter(Boolean)
 }
 
+type DaysHours = { days: string; hours: string }
+
+function secondsToDaysHours(seconds: number): DaysHours {
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.round(((seconds % 86400) / 3600) * 100) / 100
+  return { days: String(days), hours: String(hours) }
+}
+
+function daysHoursToSeconds({ days, hours }: DaysHours): number {
+  return Math.round((Number(days || 0) * 24 + Number(hours || 0)) * 3600)
+}
+
+function isValidDaysHours({ days, hours }: DaysHours): boolean {
+  const d = Number(days || 0)
+  const h = Number(hours || 0)
+  return Number.isFinite(d) && Number.isFinite(h) && d >= 0 && h >= 0
+}
+
+function LeaseTimeField({
+  legend,
+  value,
+  onChange,
+  disabled,
+}: {
+  legend: string
+  value: DaysHours
+  onChange: (value: DaysHours) => void
+  disabled: boolean
+}) {
+  return (
+    <fieldset className="duration-field">
+      <legend>{legend}</legend>
+      <label>
+        Days
+        <input
+          type="number"
+          min={0}
+          step={1}
+          value={value.days}
+          onChange={(e) => onChange({ ...value, days: e.target.value })}
+          disabled={disabled}
+        />
+      </label>
+      <label>
+        Hours
+        <input
+          type="number"
+          min={0}
+          max={23}
+          step="any"
+          value={value.hours}
+          onChange={(e) => onChange({ ...value, hours: e.target.value })}
+          disabled={disabled}
+        />
+      </label>
+    </fieldset>
+  )
+}
+
 export function OptionsPage() {
   const { isAdmin } = useAuth()
   const [config, setConfig] = useState<DhcpConfig | null>(null)
@@ -24,8 +83,8 @@ export function OptionsPage() {
   const [ntp, setNtp] = useState('')
   const [domainName, setDomainName] = useState('')
   const [domainSearch, setDomainSearch] = useState('')
-  const [leaseTime, setLeaseTime] = useState('86400')
-  const [maxLeaseTime, setMaxLeaseTime] = useState('604800')
+  const [leaseTime, setLeaseTime] = useState<DaysHours>({ days: '1', hours: '0' })
+  const [maxLeaseTime, setMaxLeaseTime] = useState<DaysHours>({ days: '7', hours: '0' })
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
@@ -38,8 +97,8 @@ export function OptionsPage() {
         setNtp(optionToInput(data.global_options['ntp-servers']))
         setDomainName(optionToInput(data.global_options['domain-name']))
         setDomainSearch(optionToInput(data.global_options['domain-search']))
-        setLeaseTime(String(data.global_options['default-lease-time'] || 86400))
-        setMaxLeaseTime(String(data.global_options['max-lease-time'] || 604800))
+        setLeaseTime(secondsToDaysHours(Number(data.global_options['default-lease-time']) || 86400))
+        setMaxLeaseTime(secondsToDaysHours(Number(data.global_options['max-lease-time']) || 604800))
       })
       .catch((err) => setError(err.message))
   }, [])
@@ -47,12 +106,25 @@ export function OptionsPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!isAdmin || !config) return
+    setError('')
+    setMessage('')
+    const leaseSeconds = daysHoursToSeconds(leaseTime)
+    const maxLeaseSeconds = daysHoursToSeconds(maxLeaseTime)
+    if (
+      !isValidDaysHours(leaseTime) ||
+      !isValidDaysHours(maxLeaseTime) ||
+      leaseSeconds <= 0 ||
+      maxLeaseSeconds <= 0
+    ) {
+      setError('Lease times must be greater than zero')
+      return
+    }
     try {
       const global_options: Record<string, unknown> = {
         ...config.global_options,
         'domain-name-servers': splitList(dns),
-        'default-lease-time': Number(leaseTime),
-        'max-lease-time': Number(maxLeaseTime),
+        'default-lease-time': leaseSeconds,
+        'max-lease-time': maxLeaseSeconds,
       }
 
       const ntpServers = splitList(ntp)
@@ -98,14 +170,8 @@ export function OptionsPage() {
           Domain search (comma separated)
           <input value={domainSearch} onChange={(e) => setDomainSearch(e.target.value)} disabled={!isAdmin} />
         </label>
-        <label>
-          Default lease time (seconds)
-          <input value={leaseTime} onChange={(e) => setLeaseTime(e.target.value)} disabled={!isAdmin} />
-        </label>
-        <label>
-          Max lease time (seconds)
-          <input value={maxLeaseTime} onChange={(e) => setMaxLeaseTime(e.target.value)} disabled={!isAdmin} />
-        </label>
+        <LeaseTimeField legend="Default lease time" value={leaseTime} onChange={setLeaseTime} disabled={!isAdmin} />
+        <LeaseTimeField legend="Max lease time" value={maxLeaseTime} onChange={setMaxLeaseTime} disabled={!isAdmin} />
         {isAdmin && (
           <button className="primary" type="submit">
             Save options
