@@ -760,6 +760,165 @@ input[type='file']::file-selector-button:hover {
   margin-top: 1rem;
 }
 
+/* Dual-handle IP range slider */
+.ip-range {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.88rem;
+}
+
+.ip-range-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-weight: 520;
+  color: var(--muted);
+}
+
+.ip-range-count {
+  color: var(--accent);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.ip-range-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 450;
+}
+
+.ip-range-track {
+  --thumb: 18px;
+  position: relative;
+  height: var(--thumb);
+}
+
+.ip-range-track::before,
+.ip-range-fill {
+  position: absolute;
+  top: 50%;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 999px;
+}
+
+.ip-range-track::before {
+  content: '';
+  left: 0;
+  right: 0;
+  background: var(--track);
+  border: 1px solid var(--stroke);
+}
+
+/* Positioned inline against thumb centers, which travel from thumb/2 to 100% - thumb/2. */
+.ip-range-fill {
+  z-index: 1;
+  background: var(--accent-grad);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.ip-range .ip-range-track input[type='range'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: var(--thumb);
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  pointer-events: none;
+}
+
+.ip-range .ip-range-track input[type='range']::-webkit-slider-runnable-track {
+  background: none;
+  border: none;
+}
+
+.ip-range .ip-range-track input[type='range']::-moz-range-track {
+  background: none;
+  border: none;
+}
+
+.ip-range .ip-range-track input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--thumb);
+  height: var(--thumb);
+  border-radius: 50%;
+  background: var(--accent-grad);
+  border: 2px solid var(--heading);
+  box-shadow: 0 2px 8px -2px var(--accent-glow);
+  cursor: grab;
+  pointer-events: auto;
+  transition: box-shadow var(--fast) ease;
+}
+
+.ip-range .ip-range-track input[type='range']::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--accent-grad);
+  border: 2px solid var(--heading);
+  box-shadow: 0 2px 8px -2px var(--accent-glow);
+  cursor: grab;
+  pointer-events: auto;
+  transition: box-shadow var(--fast) ease;
+}
+
+.ip-range .ip-range-track input[type='range']:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+.ip-range .ip-range-track input[type='range']:active::-moz-range-thumb {
+  cursor: grabbing;
+}
+
+.ip-range .ip-range-track input[type='range']:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px var(--accent-ring);
+}
+
+.ip-range .ip-range-track input[type='range']:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px var(--accent-ring);
+}
+
+.ip-range .ip-range-track input[type='range']:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.ip-range-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ip-range.locked .ip-range-track {
+  opacity: 0.45;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+.ip-range.locked .ip-range-track input[type='range']::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
+.ip-range.locked .ip-range-track input[type='range']::-moz-range-thumb {
+  cursor: not-allowed;
+}
+
+.ip-range-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
 /* ------------------------------------------------------------------ */
 /* Tables                                                              */
 /* ------------------------------------------------------------------ */

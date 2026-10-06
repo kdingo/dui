@@ -31,12 +31,18 @@ export function ipv4NetworkPreview(address: string, prefix: number) {
   const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0
   const network = (ip & mask) >>> 0
   const broadcast = (network | (~mask >>> 0)) >>> 0
+  // /31 and /32 have no network/broadcast reservation, so every address is assignable.
+  const reserved = prefix <= 30
   return {
     network: intToIPv4(network),
     netmask: intToIPv4(mask),
     broadcast: intToIPv4(broadcast),
     size: 2 ** (32 - prefix),
     cidr: `${intToIPv4(network)}/${prefix}`,
+    networkInt: network,
+    broadcastInt: broadcast,
+    firstHost: reserved ? network + 1 : network,
+    lastHost: reserved ? broadcast - 1 : broadcast,
   }
 }
 

@@ -2,9 +2,10 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
 import type { DhcpConfig, DhcpSubnet } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { CIDR_PREFIXES, ipv4NetworkPreview, splitCidr } from '../lib/ipv4'
+import { CIDR_PREFIXES, intToIPv4, ipv4NetworkPreview, parseIPv4, splitCidr } from '../lib/ipv4'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
+import { IpRangeSlider } from '../components/IpRangeSlider'
 
 const emptySubnet = {
   name: '',
@@ -45,6 +46,23 @@ export function NetworksPage() {
   useEffect(() => {
     api.getConfig().then(setConfig).catch((err) => setError(err.message))
   }, [])
+
+  // Once the network is valid, make sure the range sits inside it; otherwise default to all hosts.
+  useEffect(() => {
+    if (!preview) return
+    const { firstHost, lastHost } = preview
+    setForm((current) => {
+      const start = parseIPv4(current.range.start)
+      const end = parseIPv4(current.range.end)
+      const fits =
+        start !== null && end !== null && start >= firstHost && end <= lastHost && start <= end
+      if (fits) return current
+      return { ...current, range: { start: intToIPv4(firstHost), end: intToIPv4(lastHost) } }
+    })
+  }, [preview?.cidr])
+
+  const rangeStart = parseIPv4(form.range.start) ?? preview?.firstHost ?? 0
+  const rangeEnd = parseIPv4(form.range.end) ?? preview?.lastHost ?? 0
 
   function resetForm() {
     setForm(emptySubnet)
@@ -183,20 +201,34 @@ export function NetworksPage() {
               {preview.size.toLocaleString()} IPs
             </p>
           )}
-          <label>
-            Range start
-            <input
-              value={form.range.start}
-              onChange={(e) => setForm({ ...form, range: { ...form.range, start: e.target.value } })}
-            />
-          </label>
-          <label>
-            Range end
-            <input
-              value={form.range.end}
-              onChange={(e) => setForm({ ...form, range: { ...form.range, end: e.target.value } })}
-            />
-          </label>
+          <IpRangeSlider
+            min={preview?.firstHost ?? 0}
+            max={preview?.lastHost ?? 1}
+            start={rangeStart}
+            end={rangeEnd}
+            disabled={!preview}
+            onChange={(start, end) =>
+              setForm({ ...form, range: { start: intToIPv4(start), end: intToIPv4(end) } })
+            }
+          />
+          <div className="ip-range-fields">
+            <label>
+              Range start
+              <input
+                value={form.range.start}
+                disabled={!preview}
+                onChange={(e) => setForm({ ...form, range: { ...form.range, start: e.target.value } })}
+              />
+            </label>
+            <label>
+              Range end
+              <input
+                value={form.range.end}
+                disabled={!preview}
+                onChange={(e) => setForm({ ...form, range: { ...form.range, end: e.target.value } })}
+              />
+            </label>
+          </div>
           <label>
             Router
             <input
