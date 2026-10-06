@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { DhcpConfig, DhcpSubnet } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { CIDR_PREFIXES, intToIPv4, ipv4NetworkPreview, parseIPv4, splitCidr } from '../lib/ipv4'
+import { CIDR_PREFIXES, intToIPv4, ipv4NetworkPreview, parseIPv4, prefixToNetmask, splitCidr } from '../lib/ipv4'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
 import { IpRangeSlider } from '../components/IpRangeSlider'
@@ -201,7 +201,7 @@ export function NetworksPage() {
             >
               {CIDR_PREFIXES.map((prefix) => (
                 <option key={prefix} value={prefix}>
-                  /{prefix}
+                  /{prefix} ({prefixToNetmask(prefix)})
                 </option>
               ))}
             </select>

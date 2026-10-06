@@ -23,6 +23,10 @@ export function intToIPv4(value: number): string {
   return [24, 16, 8, 0].map((shift) => ((value >>> shift) & 255).toString()).join('.')
 }
 
+export function prefixToNetmask(prefix: number): string {
+  return intToIPv4(prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0)
+}
+
 export function ipv4NetworkPreview(address: string, prefix: number) {
   const ip = parseIPv4(address)
   if (ip === null || prefix < 0 || prefix > 32) {
