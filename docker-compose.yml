@@ -30,7 +30,7 @@ services:
       DUI_TLS: "true"
       # Optional: listen only on a management address, e.g. 192.168.1.2
       # DUI_BIND_ADDRESS: 192.168.1.2
-      # Optional: first-start admin password (12+ characters). If unset, a random one-time
+      # Optional: first-start admin password (8+ characters). If unset, a random one-time
       # password is printed to the container log. Remove it after the first start.
       # DUI_ADMIN_PASSWORD: change-me-please
     restart: unless-stopped

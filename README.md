@@ -28,7 +28,7 @@ DUI is a Dockerized home-network DHCP server with a web management interface. It
 docker compose up -d --build
 ```
 
-3. Get the one-time admin password from the first-start log, then sign in at `https://<host>:8067`. You'll be asked to choose your own password that meets the password policy (by default, 12+ characters).
+3. Get the one-time admin password from the first-start log, then sign in at `https://<host>:8067`. You'll be asked to choose your own password that meets the password policy (by default, 8+ characters).
 
 ```bash
 docker compose logs dui | grep "DUI login"
@@ -136,7 +136,7 @@ DUI controls the DHCP server for your whole network. Anyone who can change its s
 - The UI is served over HTTPS, cookies are `Secure`, `HttpOnly` and `SameSite=Strict`, and nginx sends a strict Content-Security-Policy.
 - Requests that change anything need a CSRF token and must come from the same origin. There's no CORS access.
 - Sessions are checked against `users.yaml` on every request, so logout, password changes, role changes and deleted users take effect immediately.
-- Logins are rate-limited per client IP and per username. Admins choose the password policy under **Server admin → Password policy**: a minimum length (8–72, default 12) and optional requirements for lowercase, uppercase, digits and symbols, and for not containing the username. It is stored in `/data/password_policy.yaml` and applies whenever a password is set; existing passwords keep working.
+- Logins are rate-limited per client IP and per username. Admins choose the password policy under **Server admin → Password policy**: a minimum length (8–72, default 8) and optional requirements for lowercase, uppercase, digits and symbols, and for not containing the username. It is stored in `/data/password_policy.yaml` and applies whenever a password is set; existing passwords keep working.
 - Every field written to `dhcpd.conf` is validated, and imports are parsed and regenerated rather than written as-is. Statements that can run commands or read files (`on commit`, `execute`, `include`, `omapi-*`, `key` and similar) are rejected.
 - Exports contain only the DHCP configuration (`dhcpd.conf`, `config.json`, `server.yaml`). Imports never replace users or the session secret. The exported zip still describes your network, so store it carefully.
 - The API runs as an unprivileged `dui` user. dhcpd drops to a `dhcpd` user after binding its sockets. The container keeps only the capabilities it needs and sets `no-new-privileges`.

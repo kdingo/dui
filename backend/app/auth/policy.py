@@ -13,7 +13,7 @@ POLICY_MIN_LENGTH_FLOOR = 8
 
 
 class PasswordPolicy(BaseModel):
-    min_length: int = Field(default=12, ge=POLICY_MIN_LENGTH_FLOOR, le=MAX_PASSWORD_LENGTH)
+    min_length: int = Field(default=8, ge=POLICY_MIN_LENGTH_FLOOR, le=MAX_PASSWORD_LENGTH)
     require_lowercase: bool = False
     require_uppercase: bool = False
     require_digit: bool = False

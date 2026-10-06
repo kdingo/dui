@@ -1,7 +1,7 @@
 import type { PasswordPolicy } from '../api/types'
 
 export const DEFAULT_POLICY: PasswordPolicy = {
-  min_length: 12,
+  min_length: 8,
   require_lowercase: false,
   require_uppercase: false,
   require_digit: false,

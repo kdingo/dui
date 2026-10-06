@@ -133,7 +133,7 @@ class AuthApiTests(unittest.TestCase):
 
     def test_admin_chooses_password_policy(self) -> None:
         admin = self.login()
-        self.assertEqual(admin.get("/api/auth/password-policy").json()["min_length"], 12)
+        self.assertEqual(admin.get("/api/auth/password-policy").json()["min_length"], 8)
         policy = {"min_length": 14, "require_lowercase": True, "require_uppercase": True,
                   "require_digit": True, "require_symbol": True, "disallow_username": True}
         self.assertEqual(admin.put("/api/auth/password-policy", json=policy).status_code, 200)
