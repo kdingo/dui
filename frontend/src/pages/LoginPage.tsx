@@ -54,6 +54,7 @@ export function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
+              autoFocus
             />
           </label>
           <label>
