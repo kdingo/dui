@@ -142,8 +142,13 @@ class AuthApiTests(unittest.TestCase):
         self.assertEqual(weak.status_code, 400)
         self.assertIn("an uppercase letter", weak.json()["detail"])
         self.assertIn("a digit", weak.json()["detail"])
+        self.assertEqual(weak.json()["code"], "password.policy")
+        codes = [p["code"] for p in weak.json()["params"]["problems"]]
+        self.assertIn("password.uppercase", codes)
+        self.assertIn("password.digit", codes)
         named = admin.post("/api/auth/users", json={"username": "bob", "role": "viewer", "password": "Bob-Password-1234"})
         self.assertIn("no username", named.json()["detail"])
+        self.assertIn("password.no_username", [p["code"] for p in named.json()["params"]["problems"]])
         strong = admin.post("/api/auth/users", json={"username": "bob", "role": "viewer", "password": "Tr0ub4dor&3-horse"})
         self.assertEqual(strong.status_code, 200, strong.text)
         # Applies to admin resets and self-service changes too.

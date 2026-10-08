@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import type { DhcpConfig, DhcpHost } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { errorMessage } from '../i18n/apiError'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
 
@@ -13,6 +15,7 @@ const emptyHost = {
 }
 
 export function ClientsPage() {
+  const { t } = useTranslation()
   const { isAdmin } = useAuth()
   const [config, setConfig] = useState<DhcpConfig | null>(null)
   const [form, setForm] = useState(emptyHost)
@@ -21,19 +24,20 @@ export function ClientsPage() {
   const confirm = useConfirm()
 
   useEffect(() => {
-    api.getConfig().then(setConfig).catch((err) => setError(err.message))
+    api.getConfig().then(setConfig).catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
   }, [])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!isAdmin) return
+    setError('')
     try {
       const updated = editingId ? await api.updateHost(editingId, form) : await api.addHost(form)
       setConfig(updated)
       setForm(emptyHost)
       setEditingId(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(errorMessage(err, t('common.saveFailed')))
     }
   }
 
@@ -50,27 +54,31 @@ export function ClientsPage() {
   async function removeHost(id: string) {
     if (!isAdmin) return
     const confirmed = await confirm({
-      title: 'Delete this client reservation?',
-      message: 'The fixed address will be released back to the pool.',
-      confirmLabel: 'Delete',
+      title: t('clients.deleteTitle'),
+      message: t('clients.deleteMessage'),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (!confirmed) return
-    setConfig(await api.deleteHost(id))
+    try {
+      setConfig(await api.deleteHost(id))
+    } catch (err) {
+      setError(errorMessage(err, t('common.deleteFailed')))
+    }
   }
 
   return (
     <div>
-      <h2>DHCP clients</h2>
+      <h2>{t('clients.title')}</h2>
       <Flash kind="error" message={error} />
       <div className="panel">
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>MAC</th>
-              <th>Fixed IP</th>
-              {isAdmin && <th>Actions</th>}
+              <th>{t('common.name')}</th>
+              <th>{t('clients.mac')}</th>
+              <th>{t('clients.fixedIp')}</th>
+              {isAdmin && <th>{t('common.actions')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -82,10 +90,10 @@ export function ClientsPage() {
                 {isAdmin && (
                   <td className="actions">
                     <button className="secondary" onClick={() => startEdit(host)}>
-                      Edit
+                      {t('common.edit')}
                     </button>
                     <button className="danger" onClick={() => removeHost(host.id)}>
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </td>
                 )}
@@ -93,7 +101,7 @@ export function ClientsPage() {
             ))}
             {!config?.hosts.length && (
               <tr>
-                <td colSpan={isAdmin ? 4 : 3}>No fixed clients configured.</td>
+                <td colSpan={isAdmin ? 4 : 3}>{t('clients.empty')}</td>
               </tr>
             )}
           </tbody>
@@ -101,13 +109,13 @@ export function ClientsPage() {
       </div>
       {isAdmin && (
         <form className="panel form-grid" onSubmit={handleSubmit}>
-          <h3>{editingId ? 'Edit client' : 'Add client'}</h3>
+          <h3>{editingId ? t('clients.editTitle') : t('clients.addTitle')}</h3>
           <label>
-            Name
+            {t('common.name')}
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </label>
           <label>
-            MAC address
+            {t('clients.macAddress')}
             <input
               value={form.hardware_address}
               onChange={(e) => setForm({ ...form, hardware_address: e.target.value })}
@@ -115,7 +123,7 @@ export function ClientsPage() {
             />
           </label>
           <label>
-            Fixed IP
+            {t('clients.fixedIp')}
             <input
               value={form.fixed_address}
               onChange={(e) => setForm({ ...form, fixed_address: e.target.value })}
@@ -123,7 +131,7 @@ export function ClientsPage() {
             />
           </label>
           <button className="primary" type="submit">
-            Save client
+            {t('clients.save')}
           </button>
         </form>
       )}

@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import type { DhcpConfig, DhcpSubnet } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { errorMessage } from '../i18n/apiError'
 import { CIDR_PREFIXES, intToIPv4, ipv4NetworkPreview, parseIPv4, prefixToNetmask, splitCidr } from '../lib/ipv4'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
@@ -30,6 +32,7 @@ function routersList(value: unknown): string[] {
 }
 
 export function NetworksPage() {
+  const { t } = useTranslation()
   const { isAdmin } = useAuth()
   const [config, setConfig] = useState<DhcpConfig | null>(null)
   const [form, setForm] = useState(emptySubnet)
@@ -45,7 +48,7 @@ export function NetworksPage() {
   )
 
   useEffect(() => {
-    api.getConfig().then(setConfig).catch((err) => setError(err.message))
+    api.getConfig().then(setConfig).catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
   }, [])
 
   // Once the network is valid, make sure the range sits inside it; otherwise default to all hosts.
@@ -90,7 +93,7 @@ export function NetworksPage() {
     setMessage('')
     const subnet = ipv4NetworkPreview(form.address, form.prefix)
     if (!subnet) {
-      setError('Enter a valid IPv4 network address.')
+      setError(t('networks.invalidNetwork'))
       return
     }
     const payload = {
@@ -104,10 +107,10 @@ export function NetworksPage() {
     try {
       const updated = editingId ? await api.updateSubnet(editingId, payload) : await api.addSubnet(payload)
       setConfig(updated)
-      setMessage(editingId ? 'Subnet updated.' : 'Subnet added.')
+      setMessage(editingId ? t('networks.updated') : t('networks.added'))
       resetForm()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(errorMessage(err, t('common.saveFailed')))
     }
   }
 
@@ -127,30 +130,33 @@ export function NetworksPage() {
   async function removeSubnet(id: string) {
     if (!isAdmin) return
     const confirmed = await confirm({
-      title: 'Delete this subnet?',
-      message: 'Its pool and options will be removed from the DHCP configuration.',
-      confirmLabel: 'Delete subnet',
+      title: t('networks.deleteTitle'),
+      message: t('networks.deleteMessage'),
+      confirmLabel: t('networks.deleteConfirm'),
       danger: true,
     })
     if (!confirmed) return
-    const updated = await api.deleteSubnet(id)
-    setConfig(updated)
+    try {
+      setConfig(await api.deleteSubnet(id))
+    } catch (err) {
+      setError(errorMessage(err, t('common.deleteFailed')))
+    }
   }
 
   return (
     <div>
-      <h2>Networks</h2>
+      <h2>{t('networks.title')}</h2>
       <Flash kind="error" message={error} />
       <Flash message={message} />
       <div className="panel">
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Network</th>
-              <th>Range</th>
-              <th>Router</th>
-              {isAdmin && <th>Actions</th>}
+              <th>{t('common.name')}</th>
+              <th>{t('networks.network')}</th>
+              <th>{t('networks.range')}</th>
+              <th>{t('networks.router')}</th>
+              {isAdmin && <th>{t('common.actions')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -165,10 +171,10 @@ export function NetworksPage() {
                 {isAdmin && (
                   <td className="actions">
                     <button className="secondary" onClick={() => startEdit(subnet)}>
-                      Edit
+                      {t('common.edit')}
                     </button>
                     <button className="danger" onClick={() => removeSubnet(subnet.id)}>
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </td>
                 )}
@@ -179,13 +185,13 @@ export function NetworksPage() {
       </div>
       {isAdmin && (
         <form className="panel form-grid" onSubmit={handleSubmit}>
-          <h3>{editingId ? 'Edit subnet' : 'Add subnet'}</h3>
+          <h3>{editingId ? t('networks.editTitle') : t('networks.addTitle')}</h3>
           <label>
-            Name
+            {t('common.name')}
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </label>
           <label>
-            Network
+            {t('networks.network')}
             <input
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -194,7 +200,7 @@ export function NetworksPage() {
             />
           </label>
           <label>
-            CIDR
+            {t('networks.cidr')}
             <select
               value={form.prefix}
               onChange={(e) => setForm({ ...form, prefix: Number(e.target.value) })}
@@ -208,11 +214,11 @@ export function NetworksPage() {
           </label>
           {preview && (
             <p className="muted">
-              Netmask {preview.netmask}
+              {t('networks.netmask', { netmask: preview.netmask })}
               <br />
-              Range {preview.network} – {preview.broadcast}
+              {t('networks.previewRange', { network: preview.network, broadcast: preview.broadcast })}
               <br />
-              {preview.size.toLocaleString()} IPs
+              {t('networks.ips', { count: preview.size })}
             </p>
           )}
           <IpRangeSlider
@@ -227,7 +233,7 @@ export function NetworksPage() {
           />
           <div className="ip-range-fields">
             <label>
-              Range start
+              {t('networks.rangeStart')}
               <input
                 value={form.range.start}
                 disabled={!preview}
@@ -235,7 +241,7 @@ export function NetworksPage() {
               />
             </label>
             <label>
-              Range end
+              {t('networks.rangeEnd')}
               <input
                 value={form.range.end}
                 disabled={!preview}
@@ -244,7 +250,7 @@ export function NetworksPage() {
             </label>
           </div>
           <label>
-            Router
+            {t('networks.router')}
             <input
               value={routersList(form.options.routers)[0] || ''}
               onChange={(e) => setForm({ ...form, options: { routers: [e.target.value] } })}
@@ -252,11 +258,11 @@ export function NetworksPage() {
           </label>
           <div className="actions">
             <button className="primary" type="submit">
-              Save subnet
+              {t('networks.save')}
             </button>
             {editingId && (
               <button className="secondary" type="button" onClick={resetForm}>
-                Cancel
+                {t('common.cancel')}
               </button>
             )}
           </div>

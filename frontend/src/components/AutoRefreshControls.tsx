@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import { REFRESH_INTERVALS } from '../hooks/useAutoRefresh'
+import { formatDuration } from '../i18n/format'
 
 type AutoRefreshControlsProps = {
   enabled: boolean
@@ -15,6 +17,7 @@ export function AutoRefreshControls({
   onIntervalChange,
   onRefresh,
 }: AutoRefreshControlsProps) {
+  const { t } = useTranslation()
   return (
     <div className="auto-refresh-controls">
       <label>
@@ -23,22 +26,22 @@ export function AutoRefreshControls({
           checked={enabled}
           onChange={(event) => onEnabledChange(event.target.checked)}
         />
-        Auto refresh
+        {t('autoRefresh.toggle')}
       </label>
       <select
         value={intervalMs}
         disabled={!enabled}
-        aria-label="Refresh interval"
+        aria-label={t('autoRefresh.interval')}
         onChange={(event) => onIntervalChange(Number(event.target.value))}
       >
-        {REFRESH_INTERVALS.map((option) => (
-          <option key={option.ms} value={option.ms}>
-            {option.label}
+        {REFRESH_INTERVALS.map((ms) => (
+          <option key={ms} value={ms}>
+            {formatDuration(ms)}
           </option>
         ))}
       </select>
       <button type="button" className="secondary" onClick={onRefresh}>
-        Refresh
+        {t('autoRefresh.refresh')}
       </button>
     </div>
   )

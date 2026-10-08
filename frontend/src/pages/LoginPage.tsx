@@ -1,14 +1,18 @@
 import { FormEvent, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 import { api, setCsrfToken } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Flash } from '../components/Flash'
+import { LanguageSelect } from '../components/LanguageSelect'
 import { Logo } from '../components/Logo'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { errorMessage } from '../i18n/apiError'
 import { POP_SPRING } from '../lib/motion'
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -30,13 +34,16 @@ export function LoginPage() {
       })
       navigate(state?.from || '/', { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(errorMessage(err, t('login.failed')))
     }
   }
 
   return (
     <div className="login-page">
-      <ThemeToggle className="floating-toggle" />
+      <div className="floating-controls">
+        <LanguageSelect />
+        <ThemeToggle />
+      </div>
       <motion.div
         className="card login-card"
         initial={{ opacity: 0, y: 18, scale: 0.96 }}
@@ -45,11 +52,11 @@ export function LoginPage() {
       >
         <Logo size={56} fill="once" className="login-logo" />
         <h2>DHCP UI</h2>
-        <p className="muted">Sign in to manage your DHCP server.</p>
-        <Flash kind="error" message={state?.expired ? 'Your session has expired. Please sign in again.' : ''} />
+        <p className="muted">{t('login.subtitle')}</p>
+        <Flash kind="error" message={state?.expired ? t('login.expired') : ''} />
         <form className="form-grid" onSubmit={handleSubmit}>
           <label>
-            Username
+            {t('login.username')}
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -58,7 +65,7 @@ export function LoginPage() {
             />
           </label>
           <label>
-            Password
+            {t('login.password')}
             <input
               type="password"
               value={password}
@@ -67,7 +74,7 @@ export function LoginPage() {
             />
           </label>
           <button className="primary" type="submit">
-            Login
+            {t('login.submit')}
           </button>
           <Flash kind="error" message={error} />
         </form>

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 import { POP_SPRING } from '../lib/motion'
 
 export interface ConfirmOptions {
@@ -19,6 +20,7 @@ interface PendingConfirm extends ConfirmOptions {
 const ConfirmContext = createContext<ConfirmFn>(async () => false)
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation()
   const [pending, setPending] = useState<PendingConfirm | null>(null)
   const pendingRef = useRef<PendingConfirm | null>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
@@ -110,7 +112,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
               )}
               <div className="actions dialog-actions">
                 <button type="button" className="secondary" onClick={() => close(false)}>
-                  {pending.cancelLabel ?? 'Cancel'}
+                  {pending.cancelLabel ?? t('common.cancel')}
                 </button>
                 <button
                   ref={confirmButtonRef}
@@ -118,7 +120,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                   className={pending.danger ? 'danger solid' : 'primary'}
                   onClick={() => close(true)}
                 >
-                  {pending.confirmLabel ?? 'Confirm'}
+                  {pending.confirmLabel ?? t('common.confirm')}
                 </button>
               </div>
             </motion.div>

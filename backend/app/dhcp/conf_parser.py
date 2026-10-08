@@ -4,6 +4,7 @@ import re
 import uuid
 from typing import Any
 
+from ..errors import coded
 from .cidr import to_cidr
 from .models import DhcpConfig, DhcpHost, DhcpRange, DhcpSubnet
 
@@ -139,7 +140,7 @@ def parse_dhcpd_conf(content: str) -> DhcpConfig:
         if line.endswith("{"):
             # on commit/class/key/group/shared-network/... cannot be represented (and some can
             # run commands), so refuse them instead of silently flattening their contents.
-            raise ValueError(f"Unsupported dhcpd.conf block: {line}")
+            raise coded("config.unsupported_block", line=line)
         if not line.endswith("}"):
             option_definitions.append(line.rstrip(";") + ";")
         i += 1

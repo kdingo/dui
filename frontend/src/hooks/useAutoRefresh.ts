@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export const REFRESH_INTERVALS = [
-  { label: '5 seconds', ms: 5000 },
-  { label: '30 seconds', ms: 30000 },
-  { label: '1 minute', ms: 60000 },
-  { label: '5 minutes', ms: 300000 },
-] as const
+export const REFRESH_INTERVALS = [5000, 30000, 60000, 300000] as const
 
 export const DEFAULT_REFRESH_INTERVAL_MS = 60000
 const STORAGE_KEY = 'dui.autoRefresh'
@@ -16,7 +11,7 @@ type AutoRefreshPrefs = {
 }
 
 function isAllowedInterval(ms: number) {
-  return REFRESH_INTERVALS.some((option) => option.ms === ms)
+  return REFRESH_INTERVALS.some((option) => option === ms)
 }
 
 function readPrefs(): AutoRefreshPrefs {

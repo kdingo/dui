@@ -1,7 +1,9 @@
 import { AnimatePresence, motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 import { Link, NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { LanguageSelect } from '../components/LanguageSelect'
 import { Logo } from '../components/Logo'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { EASE_OUT, PILL_SPRING } from '../lib/motion'
@@ -24,6 +26,7 @@ function NavItem({ to, end, children }: { to: string; end?: boolean; children: R
 }
 
 export function AppLayout({ serverName }: AppLayoutProps) {
+  const { t } = useTranslation()
   const { user, setUser, isAdmin } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -45,23 +48,23 @@ export function AppLayout({ serverName }: AppLayoutProps) {
         </div>
         <nav>
           <NavItem to="/" end>
-            Dashboard
+            {t('nav.dashboard')}
           </NavItem>
-          <NavItem to="/leases">Leases</NavItem>
-          <NavItem to="/logs">View logs</NavItem>
-          <span className="nav-group-title">Configure</span>
-          <NavItem to="/configure/networks">Networks</NavItem>
-          <NavItem to="/configure/clients">DHCP clients</NavItem>
-          <NavItem to="/configure/options">Server Options</NavItem>
-          <NavItem to="/configure/snapshots">Config snapshots</NavItem>
+          <NavItem to="/leases">{t('nav.leases')}</NavItem>
+          <NavItem to="/logs">{t('nav.logs')}</NavItem>
+          <span className="nav-group-title">{t('nav.configure')}</span>
+          <NavItem to="/configure/networks">{t('nav.networks')}</NavItem>
+          <NavItem to="/configure/clients">{t('nav.clients')}</NavItem>
+          <NavItem to="/configure/options">{t('nav.options')}</NavItem>
+          <NavItem to="/configure/snapshots">{t('nav.snapshots')}</NavItem>
           {isAdmin && (
             <>
-              <span className="nav-group-title">Admin</span>
+              <span className="nav-group-title">{t('nav.admin')}</span>
               <NavItem to="/admin" end>
-                Server admin
+                {t('nav.serverAdmin')}
               </NavItem>
-              <NavItem to="/admin/users">Users</NavItem>
-              <NavItem to="/admin/import-export">Import/Export</NavItem>
+              <NavItem to="/admin/users">{t('nav.users')}</NavItem>
+              <NavItem to="/admin/import-export">{t('nav.importExport')}</NavItem>
             </>
           )}
         </nav>
@@ -70,15 +73,16 @@ export function AppLayout({ serverName }: AppLayoutProps) {
         <header className="topbar">
           <strong>{serverName}</strong>
           <div className="actions">
-            <Link className="user-chip" to="/account/password" title="Change password">
+            <Link className="user-chip" to="/account/password" title={t('nav.changePassword')}>
               <span className="avatar" aria-hidden="true">
                 {user?.username.charAt(0).toUpperCase()}
               </span>
               {user?.username}
             </Link>
+            <LanguageSelect />
             <ThemeToggle />
             <button className="secondary" onClick={handleLogout}>
-              Logout
+              {t('nav.logout')}
             </button>
           </div>
         </header>

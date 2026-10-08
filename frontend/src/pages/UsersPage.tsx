@@ -1,9 +1,11 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import type { User } from '../api/types'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
 import { PasswordRequirements } from '../components/PasswordRequirements'
+import { errorMessage } from '../i18n/apiError'
 import { DEFAULT_POLICY, passwordRequirements } from '../lib/passwordPolicy'
 
 const emptyForm = {
@@ -13,6 +15,7 @@ const emptyForm = {
 }
 
 export function UsersPage() {
+  const { t } = useTranslation()
   const [users, setUsers] = useState<User[]>([])
   const [form, setForm] = useState(emptyForm)
   const [editingUsername, setEditingUsername] = useState<string | null>(null)
@@ -34,7 +37,7 @@ export function UsersPage() {
     api
       .listUsers()
       .then((result) => setUsers(result.users))
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
     api
       .passwordPolicy()
       .then(setPolicy)
@@ -69,19 +72,19 @@ export function UsersPage() {
             password: form.password,
           })
       setUsers(result.users)
-      setMessage(editingUsername ? 'User updated.' : 'User created.')
+      setMessage(editingUsername ? t('users.updated') : t('users.created'))
       resetForm()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(errorMessage(err, t('common.saveFailed')))
     }
   }
 
   async function removeUser(user: User) {
     if (isLastAdmin(user)) return
     const confirmed = await confirm({
-      title: `Delete user "${user.username}"?`,
-      message: 'They will no longer be able to sign in.',
-      confirmLabel: 'Delete user',
+      title: t('users.deleteTitle', { username: user.username }),
+      message: t('users.deleteMessage'),
+      confirmLabel: t('users.deleteConfirm'),
       danger: true,
     })
     if (!confirmed) return
@@ -90,16 +93,16 @@ export function UsersPage() {
     try {
       const result = await api.deleteUser(user.username)
       setUsers(result.users)
-      setMessage(`User "${user.username}" deleted.`)
+      setMessage(t('users.deleted', { username: user.username }))
       if (editingUsername === user.username) resetForm()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(errorMessage(err, t('common.deleteFailed')))
     }
   }
 
   return (
     <div>
-      <h2>Users</h2>
+      <h2>{t('users.title')}</h2>
       <Flash kind="error" message={error} />
       <Flash message={message} />
 
@@ -107,34 +110,34 @@ export function UsersPage() {
         <table>
           <thead>
             <tr>
-              <th>Username</th>
-              <th>Role</th>
-              <th>Actions</th>
+              <th>{t('users.username')}</th>
+              <th>{t('users.role')}</th>
+              <th>{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
               <tr key={user.username}>
                 <td>{user.username}</td>
-                <td>{user.role}</td>
+                <td>{t(`users.roles.${user.role}`)}</td>
                 <td className="actions">
                   <button className="secondary" onClick={() => startEdit(user)}>
-                    Edit
+                    {t('common.edit')}
                   </button>
                   <button
                     className="danger"
                     onClick={() => removeUser(user)}
                     disabled={isLastAdmin(user)}
-                    title={isLastAdmin(user) ? 'Cannot delete the last admin' : undefined}
+                    title={isLastAdmin(user) ? t('users.lastAdmin') : undefined}
                   >
-                    Delete
+                    {t('common.delete')}
                   </button>
                 </td>
               </tr>
             ))}
             {!users.length && (
               <tr>
-                <td colSpan={3}>No users configured.</td>
+                <td colSpan={3}>{t('users.empty')}</td>
               </tr>
             )}
           </tbody>
@@ -142,9 +145,9 @@ export function UsersPage() {
       </div>
 
       <form className="panel form-grid" onSubmit={handleSubmit}>
-        <h3>{editingUsername ? 'Edit user' : 'Add user'}</h3>
+        <h3>{editingUsername ? t('users.editTitle') : t('users.addTitle')}</h3>
         <label>
-          Username
+          {t('users.username')}
           <input
             value={form.username}
             onChange={(e) => setForm({ ...form, username: e.target.value })}
@@ -154,19 +157,19 @@ export function UsersPage() {
           />
         </label>
         <label>
-          Role
+          {t('users.role')}
           <select
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value as User['role'] })}
           >
-            <option value="admin">admin</option>
+            <option value="admin">{t('users.roles.admin')}</option>
             <option value="viewer" disabled={editingLastAdmin}>
-              viewer
+              {t('users.roles.viewer')}
             </option>
           </select>
         </label>
         <label>
-          {editingUsername ? 'New password (optional)' : 'Password'}
+          {editingUsername ? t('users.newPasswordOptional') : t('users.password')}
           <input
             type="password"
             value={form.password}
@@ -178,16 +181,16 @@ export function UsersPage() {
         </label>
         {(form.password || !editingUsername) && (
           <PasswordRequirements
-            requirements={passwordRequirements(policy, form.password, editingUsername ?? form.username)}
+            requirements={passwordRequirements(t, policy, form.password, editingUsername ?? form.username)}
           />
         )}
         <div className="actions">
           <button className="primary" type="submit">
-            {editingUsername ? 'Save user' : 'Create user'}
+            {editingUsername ? t('users.save') : t('users.create')}
           </button>
           {editingUsername && (
             <button className="secondary" type="button" onClick={resetForm}>
-              Cancel
+              {t('common.cancel')}
             </button>
           )}
         </div>

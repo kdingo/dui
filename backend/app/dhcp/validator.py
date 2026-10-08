@@ -5,6 +5,8 @@ from pathlib import Path
 
 
 class DhcpValidationError(Exception):
+    code = "dhcp.validation_failed"
+
     def __init__(self, message: str, output: str = ""):
         super().__init__(message)
         self.output = output

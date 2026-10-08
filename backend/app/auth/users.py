@@ -9,10 +9,11 @@ from typing import Any
 
 import bcrypt
 import yaml
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from ..config import Settings, get_settings
+from ..errors import AppError
 from ..fileutil import write_private_text
 
 TRUSTED_PROXIES = {"127.0.0.1", "::1"}
@@ -73,7 +74,7 @@ class UserStore:
 
     def _persist_users(self, data: dict[str, Any], users: list[dict[str, Any]]) -> None:
         if not any(u.get("role", "viewer") == "admin" for u in users):
-            raise HTTPException(status_code=400, detail="At least one admin user is required")
+            raise AppError("user.admin_required")
         data["users"] = users
         write_private_text(self.settings.users_yaml, yaml.safe_dump(data, sort_keys=False))
 
@@ -91,7 +92,7 @@ class UserStore:
             elif existing:
                 entry["password_hash"] = existing["password_hash"]
             else:
-                raise HTTPException(status_code=400, detail=f"Missing password for new user {username}")
+                raise AppError("user.missing_password", username=username)
             version = int(existing.get("session_version", 0)) if existing else 0
             if existing and (entry["password_hash"] != existing["password_hash"] or role != existing.get("role", "viewer")):
                 version += 1
@@ -104,13 +105,13 @@ class UserStore:
     def create_user(self, username: str, password: str, role: str, must_change_password: bool = False) -> None:
         username = username.strip()
         if not username:
-            raise HTTPException(status_code=400, detail="Username is required")
+            raise AppError("user.username_required")
         if not password:
-            raise HTTPException(status_code=400, detail="Password is required")
+            raise AppError("user.password_required")
         data = self.load()
         users = list(data.get("users") or [])
         if any(u.get("username") == username for u in users):
-            raise HTTPException(status_code=400, detail=f"User {username} already exists")
+            raise AppError("user.exists", username=username)
         entry: dict[str, Any] = {
             "username": username,
             "role": role,
@@ -141,14 +142,14 @@ class UserStore:
                 user["session_version"] = int(user.get("session_version", 0)) + 1
             break
         if not found:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise AppError("user.not_found", status.HTTP_404_NOT_FOUND)
         self._persist_users(data, users)
 
     def change_own_password(self, username: str, current_password: str, new_password: str) -> UserRecord:
         if not self.verify_password(username, current_password):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+            raise AppError("user.current_password_incorrect")
         if current_password == new_password:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must differ from the current one")
+            raise AppError("user.password_unchanged")
         data = self.load()
         users = list(data.get("users") or [])
         for user in users:
@@ -158,7 +159,7 @@ class UserStore:
                 user.pop("must_change_password", None)
                 self._persist_users(data, users)
                 return _record_from_entry(user)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise AppError("user.not_found", status.HTTP_404_NOT_FOUND)
 
     def bump_session_version(self, username: str) -> None:
         """Invalidate every outstanding session for ``username``."""
@@ -175,7 +176,7 @@ class UserStore:
         users = list(data.get("users") or [])
         remaining = [u for u in users if u.get("username") != username]
         if len(remaining) == len(users):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise AppError("user.not_found", status.HTTP_404_NOT_FOUND)
         self._persist_users(data, remaining)
 
 
@@ -197,10 +198,7 @@ class LoginRateLimiter:
     def check(self, key: str, max_attempts: int | None = None) -> None:
         limit = max_attempts or self.max_attempts
         if len(self._recent(key, time.time())) >= limit:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many login attempts. Try again later.",
-            )
+            raise AppError("auth.rate_limited", status.HTTP_429_TOO_MANY_REQUESTS)
 
     def record_failure(self, key: str) -> None:
         now = time.time()
@@ -247,9 +245,9 @@ class SessionManager:
         try:
             return self.serializer.loads(token, max_age=max_age)
         except SignatureExpired as exc:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired") from exc
+            raise AppError("auth.session_expired", status.HTTP_401_UNAUTHORIZED) from exc
         except BadSignature as exc:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session") from exc
+            raise AppError("auth.invalid_session", status.HTTP_401_UNAUTHORIZED) from exc
 
 
 def hash_password(password: str) -> str:

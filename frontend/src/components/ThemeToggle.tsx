@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 import { useTheme } from '../theme/ThemeContext'
 
 function SunIcon() {
@@ -19,8 +20,9 @@ function MoonIcon() {
 }
 
 export function ThemeToggle({ className = '' }: { className?: string }) {
+  const { t } = useTranslation()
   const { theme, toggleTheme } = useTheme()
-  const label = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
+  const label = theme === 'dark' ? t('theme.toLight') : t('theme.toDark')
 
   return (
     <button type="button" className={`icon-button ${className}`} onClick={toggleTheme} aria-label={label} title={label}>

@@ -1,19 +1,22 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import type { DhcpStatus, PasswordPolicy, ServerInfo } from '../api/types'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
+import { errorMessage } from '../i18n/apiError'
 import { DEFAULT_POLICY, POLICY_MAX_LENGTH, POLICY_MIN_LENGTH_FLOOR } from '../lib/passwordPolicy'
 
-const POLICY_RULES: { key: keyof Omit<PasswordPolicy, 'min_length'>; label: string }[] = [
-  { key: 'require_lowercase', label: 'Require a lowercase letter' },
-  { key: 'require_uppercase', label: 'Require an uppercase letter' },
-  { key: 'require_digit', label: 'Require a digit' },
-  { key: 'require_symbol', label: 'Require a symbol' },
-  { key: 'disallow_username', label: 'Reject passwords containing the username' },
-]
+const POLICY_RULES = [
+  'require_lowercase',
+  'require_uppercase',
+  'require_digit',
+  'require_symbol',
+  'disallow_username',
+] as const satisfies readonly (keyof Omit<PasswordPolicy, 'min_length'>)[]
 
 export function AdminPage() {
+  const { t } = useTranslation()
   const [server, setServer] = useState<ServerInfo | null>(null)
   const [status, setStatus] = useState<DhcpStatus | null>(null)
   const [serverName, setServerName] = useState('')
@@ -35,14 +38,20 @@ export function AdminPage() {
   }
 
   useEffect(() => {
-    refresh().catch((err) => setError(err.message))
+    refresh().catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
   }, [])
 
   async function saveServerName(event: FormEvent) {
     event.preventDefault()
-    await api.updateServerName(serverName)
-    setMessage('Server name updated.')
-    await refresh()
+    setError('')
+    setMessage('')
+    try {
+      await api.updateServerName(serverName)
+      setMessage(t('admin.nameUpdated'))
+      await refresh()
+    } catch (err) {
+      setError(errorMessage(err, t('common.saveFailed')))
+    }
   }
 
   async function savePolicy(event: FormEvent) {
@@ -51,26 +60,29 @@ export function AdminPage() {
     setMessage('')
     try {
       setPolicy(await api.updatePasswordPolicy(policy))
-      setMessage('Password policy saved. It applies to passwords set from now on.')
+      setMessage(t('admin.policySaved'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Saving the password policy failed')
+      setError(errorMessage(err, t('admin.policyFailed')))
     }
   }
 
   async function dhcpAction(action: 'start' | 'stop' | 'restart') {
-    await api.dhcpControl(action)
-    setMessage(`DHCP service ${action} requested.`)
-    await refresh()
+    setError('')
+    setMessage('')
+    try {
+      await api.dhcpControl(action)
+      setMessage(t(`admin.dhcpRequested.${action}`))
+      await refresh()
+    } catch (err) {
+      setError(errorMessage(err, t('common.saveFailed')))
+    }
   }
 
   async function containerAction(action: 'stop' | 'restart') {
     const confirmed = await confirm({
-      title: `${action === 'stop' ? 'Stop' : 'Restart'} the container?`,
-      message:
-        action === 'stop'
-          ? 'The web UI and DHCP service will go offline until the container is started again.'
-          : 'The web UI and DHCP service will be briefly unavailable.',
-      confirmLabel: action === 'stop' ? 'Stop container' : 'Restart container',
+      title: action === 'stop' ? t('admin.stopContainerTitle') : t('admin.restartContainerTitle'),
+      message: action === 'stop' ? t('admin.stopContainerMessage') : t('admin.restartContainerMessage'),
+      confirmLabel: action === 'stop' ? t('admin.stopContainer') : t('admin.restartContainer'),
       danger: action === 'stop',
     })
     if (!confirmed) return
@@ -80,34 +92,34 @@ export function AdminPage() {
 
   return (
     <div>
-      <h2>Server admin</h2>
+      <h2>{t('admin.title')}</h2>
       <Flash kind="error" message={error} />
       <Flash message={message} />
 
       <div className="card-grid">
         <div className="card">
-          <h3>Server</h3>
+          <h3>{t('admin.server')}</h3>
           <form className="form-grid" onSubmit={saveServerName}>
             <label>
-              Display name
+              {t('admin.displayName')}
               <input value={serverName} onChange={(e) => setServerName(e.target.value)} />
             </label>
             <button className="primary" type="submit">
-              Save name
+              {t('admin.saveName')}
             </button>
           </form>
           {server && (
             <p className="muted">
-              Interface: {server.interface} · Port: {server.http_port}
+              {t('admin.serverInfo', { interface: server.interface, port: server.http_port })}
             </p>
           )}
         </div>
 
         <div className="card">
-          <h3>Password policy</h3>
+          <h3>{t('admin.policyTitle')}</h3>
           <form className="form-grid" onSubmit={savePolicy}>
             <label>
-              Minimum length ({POLICY_MIN_LENGTH_FLOOR}–{POLICY_MAX_LENGTH})
+              {t('admin.minLength', { min: POLICY_MIN_LENGTH_FLOOR, max: POLICY_MAX_LENGTH })}
               <input
                 type="number"
                 min={POLICY_MIN_LENGTH_FLOOR}
@@ -118,50 +130,50 @@ export function AdminPage() {
               />
             </label>
             {POLICY_RULES.map((rule) => (
-              <label key={rule.key} className="checkbox-row">
+              <label key={rule} className="checkbox-row">
                 <input
                   type="checkbox"
-                  checked={policy[rule.key]}
-                  onChange={(e) => setPolicy({ ...policy, [rule.key]: e.target.checked })}
+                  checked={policy[rule]}
+                  onChange={(e) => setPolicy({ ...policy, [rule]: e.target.checked })}
                 />
-                {rule.label}
+                {t(`admin.rules.${rule}`)}
               </label>
             ))}
             <button className="primary" type="submit">
-              Save policy
+              {t('admin.savePolicy')}
             </button>
           </form>
-          <p className="muted">Existing passwords keep working; the policy is checked whenever a password is set.</p>
+          <p className="muted">{t('admin.policyNote')}</p>
         </div>
 
         <div className="card">
-          <h3>DHCP service</h3>
+          <h3>{t('admin.dhcpTitle')}</h3>
           <p>
             <span className={`status-dot ${status?.running ? 'on' : ''}`} aria-hidden="true" />
-            {status?.running ? 'Running' : 'Stopped'}
+            {status?.running ? t('admin.running') : t('admin.stopped')}
           </p>
           <p className="muted">{status?.detail}</p>
           <div className="actions">
             <button className="secondary" disabled={Boolean(status?.running)} onClick={() => dhcpAction('start')}>
-              Start
+              {t('admin.start')}
             </button>
             <button className="secondary" disabled={!status?.running} onClick={() => dhcpAction('stop')}>
-              Stop
+              {t('admin.stop')}
             </button>
             <button className="secondary" disabled={!status?.running} onClick={() => dhcpAction('restart')}>
-              Restart
+              {t('admin.restart')}
             </button>
           </div>
         </div>
 
         <div className="card">
-          <h3>Container</h3>
+          <h3>{t('admin.containerTitle')}</h3>
           <div className="actions">
             <button className="danger" onClick={() => containerAction('stop')}>
-              Stop container
+              {t('admin.stopContainer')}
             </button>
             <button className="secondary" onClick={() => containerAction('restart')}>
-              Restart container
+              {t('admin.restartContainer')}
             </button>
           </div>
         </div>

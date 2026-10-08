@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { AutoRefreshControls } from '../components/AutoRefreshControls'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { Flash } from '../components/Flash'
+import { errorMessage } from '../i18n/apiError'
 
 export function LogsPage() {
+  const { t } = useTranslation()
   const [lines, setLines] = useState<string[]>([])
   const [error, setError] = useState('')
   const logRef = useRef<HTMLDivElement>(null)
@@ -15,7 +18,7 @@ export function LogsPage() {
       setLines(data.lines)
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load logs')
+      setError(errorMessage(err, t('logs.loadFailed')))
     }
   })
 
@@ -27,7 +30,7 @@ export function LogsPage() {
   return (
     <div>
       <div className="actions page-header">
-        <h2>View logs</h2>
+        <h2>{t('logs.title')}</h2>
         <AutoRefreshControls
           enabled={enabled}
           intervalMs={intervalMs}
@@ -37,7 +40,7 @@ export function LogsPage() {
         />
       </div>
       <Flash kind="error" message={error} />
-      <div className="log-viewer" ref={logRef}>{lines.join('\n') || 'No log lines yet.'}</div>
+      <div className="log-viewer" ref={logRef}>{lines.join('\n') || t('logs.empty')}</div>
     </div>
   )
 }

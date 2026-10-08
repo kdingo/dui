@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 
 import yaml
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from ..auth.deps import get_current_user, require_admin, verify_csrf
 from ..config import get_settings
+from ..errors import AppError
 from ..dhcp.manager import (
     control_dhcp_service,
     dhcp_service_status,
@@ -61,12 +62,12 @@ async def dhcp_control(
     __: None = Depends(verify_csrf),
 ) -> dict[str, str]:
     if action not in {"start", "stop", "restart"}:
-        raise HTTPException(status_code=400, detail="Invalid action")
+        raise AppError("dhcp.invalid_action")
     try:
         control_dhcp_service(get_settings(), action)
     except Exception as exc:
         logger.exception("dhcp %s failed", action)
-        raise HTTPException(status_code=500, detail=f"Failed to {action} dhcpd") from exc
+        raise AppError(f"dhcp.{action}_failed", 500) from exc
     return {"status": action}
 
 

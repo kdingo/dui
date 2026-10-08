@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from typing import Any
+
 import yaml
-from fastapi import HTTPException, status
 from pydantic import BaseModel, Field, ValidationError
 
 from ..config import Settings, get_settings
+from ..errors import AppError, format_message
 from ..fileutil import write_private_text
 from .users import MAX_PASSWORD_LENGTH
 
@@ -20,31 +22,41 @@ class PasswordPolicy(BaseModel):
     require_symbol: bool = False
     disallow_username: bool = True
 
-    def problems(self, password: str, username: str | None = None) -> list[str]:
-        """Human-readable reasons ``password`` doesn't meet this policy (empty when it does)."""
-        found = []
+    def problem_codes(self, password: str, username: str | None = None) -> list[dict[str, Any]]:
+        """Unmet rules as ``{"code", "params"}`` entries (see app/errors.py), empty when all are met."""
+        found: list[dict[str, Any]] = []
+
+        def add(code: str, **params: Any) -> None:
+            found.append({"code": code, "params": params})
+
         if len(password) < self.min_length:
-            found.append(f"at least {self.min_length} characters")
+            add("password.min_length", min=self.min_length)
         if len(password.encode()) > MAX_PASSWORD_LENGTH:
-            found.append(f"at most {MAX_PASSWORD_LENGTH} bytes")
+            add("password.max_bytes", max=MAX_PASSWORD_LENGTH)
         if self.require_lowercase and not any(c.islower() for c in password):
-            found.append("a lowercase letter")
+            add("password.lowercase")
         if self.require_uppercase and not any(c.isupper() for c in password):
-            found.append("an uppercase letter")
+            add("password.uppercase")
         if self.require_digit and not any(c.isdigit() for c in password):
-            found.append("a digit")
+            add("password.digit")
         if self.require_symbol and all(c.isalnum() for c in password):
-            found.append("a symbol")
+            add("password.symbol")
         if self.disallow_username and username and username.lower() in password.lower():
-            found.append("no username in it")
+            add("password.no_username")
         return found
 
+    def problems(self, password: str, username: str | None = None) -> list[str]:
+        """Human-readable reasons ``password`` doesn't meet this policy (empty when it does)."""
+        return [format_message(p["code"], p["params"]) for p in self.problem_codes(password, username)]
+
     def enforce(self, password: str, username: str | None = None) -> None:
-        found = self.problems(password, username)
+        found = self.problem_codes(password, username)
         if found:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password does not meet the policy: needs " + ", ".join(found),
+            english = ", ".join(format_message(p["code"], p["params"]) for p in found)
+            raise AppError(
+                "password.policy",
+                detail=format_message("password.policy", {"problems": english}),
+                problems=found,
             )
 
 

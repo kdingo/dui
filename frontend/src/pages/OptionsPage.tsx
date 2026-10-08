@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import type { DhcpConfig } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { errorMessage } from '../i18n/apiError'
 import { Flash } from '../components/Flash'
 
 function optionToInput(value: unknown): string {
@@ -46,11 +48,12 @@ function LeaseTimeField({
   onChange: (value: DaysHours) => void
   disabled: boolean
 }) {
+  const { t } = useTranslation()
   return (
     <fieldset className="duration-field">
       <legend>{legend}</legend>
       <label>
-        Days
+        {t('options.days')}
         <input
           type="number"
           min={0}
@@ -61,7 +64,7 @@ function LeaseTimeField({
         />
       </label>
       <label>
-        Hours
+        {t('options.hours')}
         <input
           type="number"
           min={0}
@@ -77,6 +80,7 @@ function LeaseTimeField({
 }
 
 export function OptionsPage() {
+  const { t } = useTranslation()
   const { isAdmin } = useAuth()
   const [config, setConfig] = useState<DhcpConfig | null>(null)
   const [dns, setDns] = useState('')
@@ -100,7 +104,7 @@ export function OptionsPage() {
         setLeaseTime(secondsToDaysHours(Number(data.global_options['default-lease-time']) || 86400))
         setMaxLeaseTime(secondsToDaysHours(Number(data.global_options['max-lease-time']) || 604800))
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
   }, [])
 
   async function handleSubmit(event: FormEvent) {
@@ -116,7 +120,7 @@ export function OptionsPage() {
       leaseSeconds <= 0 ||
       maxLeaseSeconds <= 0
     ) {
-      setError('Lease times must be greater than zero')
+      setError(t('options.invalidLease'))
       return
     }
     try {
@@ -142,39 +146,39 @@ export function OptionsPage() {
 
       const updated = await api.updateOptions(global_options)
       setConfig(updated)
-      setMessage('Options saved and applied.')
+      setMessage(t('options.saved'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(errorMessage(err, t('common.saveFailed')))
     }
   }
 
   return (
     <div>
-      <h2>Options</h2>
+      <h2>{t('options.title')}</h2>
       <Flash kind="error" message={error} />
       <Flash message={message} />
       <form className="panel form-grid" onSubmit={handleSubmit}>
         <label>
-          DNS servers (comma separated)
+          {t('options.dns')}
           <input value={dns} onChange={(e) => setDns(e.target.value)} disabled={!isAdmin} />
         </label>
         <label>
-          NTP servers (comma separated)
+          {t('options.ntp')}
           <input value={ntp} onChange={(e) => setNtp(e.target.value)} disabled={!isAdmin} />
         </label>
         <label>
-          Domain name
+          {t('options.domainName')}
           <input value={domainName} onChange={(e) => setDomainName(e.target.value)} disabled={!isAdmin} />
         </label>
         <label>
-          Domain search (comma separated)
+          {t('options.domainSearch')}
           <input value={domainSearch} onChange={(e) => setDomainSearch(e.target.value)} disabled={!isAdmin} />
         </label>
-        <LeaseTimeField legend="Default lease time" value={leaseTime} onChange={setLeaseTime} disabled={!isAdmin} />
-        <LeaseTimeField legend="Max lease time" value={maxLeaseTime} onChange={setMaxLeaseTime} disabled={!isAdmin} />
+        <LeaseTimeField legend={t('options.defaultLease')} value={leaseTime} onChange={setLeaseTime} disabled={!isAdmin} />
+        <LeaseTimeField legend={t('options.maxLease')} value={maxLeaseTime} onChange={setMaxLeaseTime} disabled={!isAdmin} />
         {isAdmin && (
           <button className="primary" type="submit">
-            Save options
+            {t('options.save')}
           </button>
         )}
       </form>

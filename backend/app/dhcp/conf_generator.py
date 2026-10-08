@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..errors import coded
 from .cidr import cidr_to_dhcpd
 from .models import _UNSAFE_STRING_RE, DhcpConfig
 
@@ -32,9 +33,9 @@ def _format_option_value(value: Any) -> str:
             return value
         # Models already reject these; refuse here too so nothing can escape the quoted string.
         if _UNSAFE_STRING_RE.search(value):
-            raise ValueError(f"unsafe option value {value!r}")
+            raise coded("config.unsafe_option_value", value=value)
         return f'"{value}"'
-    raise ValueError(f"unsupported option value {value!r}")
+    raise coded("config.unsupported_option_value", value=str(value))
 
 
 def _write_options(lines: list[str], options: dict[str, Any], indent: str = "  ") -> None:

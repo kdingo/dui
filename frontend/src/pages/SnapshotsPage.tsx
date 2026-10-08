@@ -1,9 +1,12 @@
 import { Fragment, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import type { Snapshot } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
+import { errorMessage } from '../i18n/apiError'
+import { formatDateTime } from '../i18n/format'
 
 function formatSnapshotDate(createdAt: string): string {
   const match = createdAt.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/)
@@ -11,10 +14,11 @@ function formatSnapshotDate(createdAt: string): string {
   const [, y, m, d, h, min, s] = match
   const date = new Date(`${y}-${m}-${d}T${h}:${min}:${s}Z`)
   if (Number.isNaN(date.getTime())) return createdAt
-  return date.toLocaleString()
+  return formatDateTime(date)
 }
 
 export function SnapshotsPage() {
+  const { t } = useTranslation()
   const { isAdmin } = useAuth()
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [error, setError] = useState('')
@@ -28,7 +32,7 @@ export function SnapshotsPage() {
   }
 
   useEffect(() => {
-    load().catch((err) => setError(err.message))
+    load().catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
   }, [])
 
   async function toggleView(snapshot: Snapshot) {
@@ -46,39 +50,39 @@ export function SnapshotsPage() {
       setExpanded((prev) => ({ ...prev, [snapshot.id]: content }))
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dhcpd.conf')
+      setError(errorMessage(err, t('snapshots.loadConfFailed')))
     }
   }
 
   async function restore(id: string) {
     if (!isAdmin) return
     const confirmed = await confirm({
-      title: 'Restore this snapshot?',
-      message: `The current configuration will be replaced with snapshot ${id}.`,
-      confirmLabel: 'Restore',
+      title: t('snapshots.restoreTitle'),
+      message: t('snapshots.restoreMessage', { id }),
+      confirmLabel: t('snapshots.restore'),
     })
     if (!confirmed) return
     try {
       await api.restoreSnapshot(id)
-      setMessage(`Restored snapshot ${id}.`)
+      setMessage(t('snapshots.restored', { id }))
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Restore failed')
+      setError(errorMessage(err, t('snapshots.restoreFailed')))
     }
   }
 
   async function remove(id: string) {
     if (!isAdmin) return
     const confirmed = await confirm({
-      title: 'Delete this snapshot?',
-      message: `Snapshot ${id} will be permanently removed.`,
-      confirmLabel: 'Delete',
+      title: t('snapshots.deleteTitle'),
+      message: t('snapshots.deleteMessage', { id }),
+      confirmLabel: t('common.delete'),
       danger: true,
     })
     if (!confirmed) return
     try {
       await api.deleteSnapshot(id)
-      setMessage(`Deleted snapshot ${id}.`)
+      setMessage(t('snapshots.deleted', { id }))
       setError('')
       setExpanded((prev) => {
         const next = { ...prev }
@@ -87,7 +91,7 @@ export function SnapshotsPage() {
       })
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(errorMessage(err, t('common.deleteFailed')))
     }
   }
 
@@ -95,16 +99,16 @@ export function SnapshotsPage() {
 
   return (
     <div>
-      <h2>Config snapshots</h2>
+      <h2>{t('snapshots.title')}</h2>
       <Flash kind="error" message={error} />
       <Flash message={message} />
       <div className="panel">
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>ID</th>
-              {isAdmin && <th>Actions</th>}
+              <th>{t('snapshots.date')}</th>
+              <th>{t('snapshots.id')}</th>
+              {isAdmin && <th>{t('common.actions')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -120,13 +124,13 @@ export function SnapshotsPage() {
                         disabled={!snapshot.has_dhcpd_conf}
                         onClick={() => toggleView(snapshot)}
                       >
-                        View
+                        {t('snapshots.view')}
                       </button>
                       <button className="secondary" onClick={() => restore(snapshot.id)}>
-                        Restore
+                        {t('snapshots.restore')}
                       </button>
                       <button className="danger" onClick={() => remove(snapshot.id)}>
-                        Delete
+                        {t('common.delete')}
                       </button>
                     </td>
                   )}
@@ -147,7 +151,7 @@ export function SnapshotsPage() {
             ))}
             {!snapshots.length && (
               <tr>
-                <td colSpan={colSpan}>No snapshots yet.</td>
+                <td colSpan={colSpan}>{t('snapshots.empty')}</td>
               </tr>
             )}
           </tbody>

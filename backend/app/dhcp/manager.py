@@ -12,6 +12,7 @@ from pathlib import Path
 import yaml
 
 from ..config import Settings, get_settings
+from ..errors import CodedNotFound, coded
 from .conf_generator import generate_dhcpd_conf
 from .conf_parser import parse_dhcpd_conf
 from .models import DhcpConfig, SnapshotInfo
@@ -97,9 +98,9 @@ class ConfigManager:
         base = self.settings.snapshots_dir.resolve()
         src = (self.settings.snapshots_dir / snapshot_id).resolve()
         if src != base and base not in src.parents:
-            raise FileNotFoundError(f"Snapshot {snapshot_id} not found")
+            raise CodedNotFound("snapshot.not_found", id=snapshot_id)
         if not src.is_dir():
-            raise FileNotFoundError(f"Snapshot {snapshot_id} not found")
+            raise CodedNotFound("snapshot.not_found", id=snapshot_id)
         return src
 
     def restore_snapshot(self, snapshot_id: str) -> None:
@@ -111,7 +112,7 @@ class ConfigManager:
         elif (src / "dhcpd.conf").exists():
             config = parse_dhcpd_conf((src / "dhcpd.conf").read_text(encoding="utf-8"))
         else:
-            raise FileNotFoundError(f"Snapshot {snapshot_id} is empty")
+            raise CodedNotFound("snapshot.empty", id=snapshot_id)
         self._write_config(config)
         validate_dhcpd_conf(self.settings.dhcpd_conf)
         reload_dhcp_service(self.settings)
@@ -122,7 +123,7 @@ class ConfigManager:
     def read_snapshot_dhcpd_conf(self, snapshot_id: str) -> str:
         conf = self._snapshot_dir(snapshot_id) / "dhcpd.conf"
         if not conf.is_file():
-            raise FileNotFoundError(f"Snapshot {snapshot_id} has no dhcpd.conf")
+            raise CodedNotFound("snapshot.no_conf", id=snapshot_id)
         return conf.read_text(encoding="utf-8")
 
     def import_dhcpd_conf(self, content: str) -> DhcpConfig:
@@ -150,7 +151,7 @@ class ConfigManager:
     def import_bundle(self, zip_bytes: bytes) -> DhcpConfig:
         members = _read_data_zip(zip_bytes)
         if "dhcpd.conf" not in members:
-            raise ValueError("Zip archive is missing dhcpd.conf")
+            raise coded("import.zip_missing_conf")
         if "config.json" in members:
             config = DhcpConfig.model_validate_json(members["config.json"])
         else:
@@ -164,25 +165,25 @@ class ConfigManager:
         try:
             data = yaml.safe_load(raw.decode("utf-8")) or {}
         except (yaml.YAMLError, UnicodeDecodeError) as exc:
-            raise ValueError("server.yaml in the zip is not valid YAML") from exc
+            raise coded("import.server_yaml_invalid") from exc
         name = data.get("name") if isinstance(data, dict) else None
         if not isinstance(name, str) or not name.strip() or len(name) > 128:
-            raise ValueError("server.yaml in the zip must contain a short 'name'")
+            raise coded("import.server_yaml_name")
         self.settings.server_yaml.write_text(yaml.safe_dump({"name": name.strip()}), encoding="utf-8")
 
 
 def _safe_zip_dest(root: Path, name: str) -> Path:
     normalized = name.replace("\\", "/").strip("/")
     if not normalized or normalized == ".":
-        raise ValueError(f"Unsafe zip member path: {name}")
+        raise coded("import.zip_unsafe_path", name=name)
     if normalized.startswith("../") or "/../" in f"/{normalized}/":
-        raise ValueError(f"Unsafe zip member path: {name}")
+        raise coded("import.zip_unsafe_path", name=name)
     candidate = Path(normalized)
     if candidate.is_absolute() or any(part == ".." or ":" in part for part in candidate.parts):
-        raise ValueError(f"Unsafe zip member path: {name}")
+        raise coded("import.zip_unsafe_path", name=name)
     dest = (root / candidate).resolve()
     if not dest.is_relative_to(root.resolve()):
-        raise ValueError(f"Unsafe zip member path: {name}")
+        raise coded("import.zip_unsafe_path", name=name)
     return dest
 
 
@@ -191,7 +192,7 @@ def _read_data_zip(zip_bytes: bytes) -> dict[str, bytes]:
     try:
         archive = zipfile.ZipFile(io.BytesIO(zip_bytes))
     except zipfile.BadZipFile as exc:
-        raise ValueError("Invalid zip file") from exc
+        raise coded("import.zip_invalid") from exc
 
     check_root = Path("/bundle")
     members: dict[str, bytes] = {}
@@ -199,7 +200,7 @@ def _read_data_zip(zip_bytes: bytes) -> dict[str, bytes]:
     with archive:
         infos = archive.infolist()
         if len(infos) > MAX_BUNDLE_MEMBERS:
-            raise ValueError("Zip archive has too many entries")
+            raise coded("import.zip_too_many_entries")
         for info in infos:
             name = info.filename.replace("\\", "/")
             _safe_zip_dest(check_root, name.rstrip("/"))
@@ -210,7 +211,7 @@ def _read_data_zip(zip_bytes: bytes) -> dict[str, bytes]:
                 data = src.read(MAX_BUNDLE_BYTES - total + 1)
             total += len(data)
             if total > MAX_BUNDLE_BYTES:
-                raise ValueError("Zip archive is too large")
+                raise coded("import.zip_contents_too_large")
             members[name] = data
     return members
 

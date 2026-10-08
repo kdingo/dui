@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
 
 from ..auth.deps import get_current_user, require_admin, verify_csrf
 from ..dhcp.manager import ConfigManager, DhcpValidationError
+from ..errors import AppError, to_http
 
 router = APIRouter(prefix="/api/snapshots", tags=["snapshots"])
 
@@ -22,7 +23,7 @@ async def get_snapshot_dhcpd_conf(
     try:
         content = ConfigManager().read_snapshot_dhcpd_conf(snapshot_id)
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise to_http(exc, 404) from exc
     return Response(content=content, media_type="text/plain")
 
 
@@ -36,11 +37,16 @@ async def restore_snapshot(
     try:
         manager.restore_snapshot(snapshot_id)
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise to_http(exc, 404) from exc
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Snapshot contains invalid configuration: {exc}") from exc
+        inner = to_http(exc)
+        raise AppError(
+            "snapshot.invalid_config",
+            cause=inner if isinstance(inner, AppError) else None,
+            reason=inner.detail,
+        ) from exc
     return {"status": "restored", "snapshot_id": snapshot_id}
 
 
@@ -53,5 +59,5 @@ async def delete_snapshot(
     try:
         ConfigManager().delete_snapshot(snapshot_id)
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise to_http(exc, 404) from exc
     return {"status": "deleted", "snapshot_id": snapshot_id}

@@ -128,6 +128,20 @@ npm install
 npm run dev
 ```
 
+### Translations
+
+The UI uses [i18next](https://www.i18next.com/) with [react-i18next](https://react.i18next.com/). Each language has one JSON file, `frontend/src/locales/<code>/translation.json`, which covers both the UI text and the server's messages. English (`en`) is the source and the fallback for any missing text. The UI picks the browser's language when it's available, and the language picker (shown once more than one language is listed) remembers the user's choice.
+
+To add a language:
+
+1. Copy `frontend/src/locales/en/translation.json` to `frontend/src/locales/<code>/translation.json`, where `<code>` is a BCP 47 tag such as `de` or `pt-BR`, and translate the values. Leave `{{placeholders}}` and `<tags>` as they are. For plurals, use the [CLDR forms](https://www.i18next.com/translation-function/plurals) your language needs (`_one`, `_few`, `_many`, `_other`, ...).
+2. Add `{ code: '<code>', name: '<native name>' }` to `frontend/src/i18n/languages.ts`.
+3. Run `npm run i18n:check` (or `npm run i18n:check -- --strict` in CI). It lists missing or unknown keys, mismatched placeholders, and backend messages with no English text.
+
+Right-to-left languages get `dir="rtl"` automatically. Dates and numbers follow the selected language.
+
+Server messages: the API returns a stable `code` and `params` with each error, alongside the English `detail`, and the UI translates `server.<code>`. To add a server message, add its code and English template to `MESSAGES` in `backend/app/errors.py`, raise it with `AppError(code, ...)` (or `coded(code, ...)` inside validators), and add the English text under `server` in `locales/en`.
+
 ## Security
 
 DUI controls the DHCP server for your whole network. Anyone who can change its settings can point every device at a malicious router or DNS server. Treat admin access accordingly.

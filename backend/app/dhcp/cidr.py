@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import ipaddress
 
+from ..errors import coded
+
 
 def normalize_ipv4_cidr(value: str) -> str:
     if not isinstance(value, str) or "/" not in value:
-        raise ValueError("network must be an IPv4 CIDR (e.g. 192.168.1.0/24)")
+        raise coded("validation.cidr")
     try:
         network = ipaddress.IPv4Network(value, strict=False)
     except (ipaddress.AddressValueError, ipaddress.NetmaskValueError, ValueError) as exc:
-        raise ValueError("network must be an IPv4 CIDR (e.g. 192.168.1.0/24)") from exc
+        raise coded("validation.cidr") from exc
     return str(network)
 
 

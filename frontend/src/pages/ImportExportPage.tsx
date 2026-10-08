@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { Flash } from '../components/Flash'
 import { Tabs } from '../components/Tabs'
+import { errorMessage } from '../i18n/apiError'
 
 type ImportMethod = 'zip' | 'paste'
 
 export function ImportExportPage() {
+  const { t } = useTranslation()
   const [method, setMethod] = useState<ImportMethod>('zip')
   const [zipFile, setZipFile] = useState<File | null>(null)
   const [content, setContent] = useState('')
@@ -21,7 +24,7 @@ export function ImportExportPage() {
         setContent(conf)
         setPasteLoaded(true)
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
   }, [method, pasteLoaded])
 
   async function handleExport() {
@@ -35,7 +38,7 @@ export function ImportExportPage() {
       URL.revokeObjectURL(url)
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed')
+      setError(errorMessage(err, t('importExport.exportFailed')))
     }
   }
 
@@ -43,32 +46,32 @@ export function ImportExportPage() {
     try {
       if (method === 'zip') {
         if (!zipFile) {
-          setError('Choose a zip file to import.')
+          setError(t('importExport.chooseZip'))
           return
         }
         await api.importConfigZip(zipFile)
       } else {
         await api.importConfig(content)
       }
-      setMessage('Configuration imported and applied.')
+      setMessage(t('importExport.imported'))
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed')
+      setError(errorMessage(err, t('importExport.importFailed')))
     }
   }
 
   return (
     <div>
-      <h2>Import/Export</h2>
+      <h2>{t('importExport.title')}</h2>
       <Flash kind="error" message={error} />
       <Flash message={message} />
       <div className="panel">
         <div className="actions page-header">
           <button className="secondary" onClick={handleExport}>
-            Download zip
+            {t('importExport.download')}
           </button>
           <button className="primary" onClick={handleImport}>
-            Import and apply
+            {t('importExport.import')}
           </button>
         </div>
         <Tabs
@@ -76,26 +79,26 @@ export function ImportExportPage() {
           value={method}
           onChange={setMethod}
           options={[
-            { value: 'zip', label: 'Zip file' },
-            { value: 'paste', label: 'Paste' },
+            { value: 'zip', label: t('importExport.zipTab') },
+            { value: 'paste', label: t('importExport.pasteTab') },
           ]}
         />
         {method === 'zip' ? (
           <label className="form-grid wide">
-            Zip file
+            {t('importExport.zipFile')}
             <input
               type="file"
               accept=".zip,application/zip"
               onChange={(e) => setZipFile(e.target.files?.[0] ?? null)}
             />
             <span className="muted">
-              Contains the entire /data directory (config, leases, users, snapshots). Logs are not included.
+              {t('importExport.zipHint')}
             </span>
           </label>
         ) : (
           <div className="form-grid wide">
             <label>
-              dhcpd.conf
+              {t('importExport.dhcpdConf')}
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}

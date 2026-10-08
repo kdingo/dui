@@ -6,6 +6,7 @@ from typing import Annotated, Any
 
 from pydantic import AfterValidator, BaseModel, Field, field_validator
 
+from ..errors import coded
 from .cidr import normalize_ipv4_cidr
 
 # Every field below is written verbatim into dhcpd.conf, so each one is restricted to the
@@ -37,19 +38,19 @@ def _ipv4(value: str) -> str:
     try:
         return str(ipaddress.IPv4Address(value.strip()))
     except (ipaddress.AddressValueError, ValueError) as exc:
-        raise ValueError(f"{value!r} is not a valid IPv4 address") from exc
+        raise coded("validation.ipv4", value=value) from exc
 
 
 def _host_name(value: str) -> str:
     if not _HOST_NAME_RE.match(value):
-        raise ValueError("host name may only contain letters, digits, '.', '_' and '-'")
+        raise coded("validation.host_name")
     return value
 
 
 def _mac(value: str) -> str:
     value = value.strip()
     if not _MAC_RE.match(value):
-        raise ValueError(f"{value!r} is not a valid MAC address (aa:bb:cc:dd:ee:ff)")
+        raise coded("validation.mac", value=value)
     return value.lower()
 
 
@@ -60,15 +61,12 @@ def _fixed_address(value: str) -> str:
     except ValueError:
         if _DNS_NAME_RE.match(value):
             return value
-        raise ValueError(f"{value!r} is not a valid IPv4 address or hostname") from None
+        raise coded("validation.fixed_address", value=value) from None
 
 
 def _safe_string(value: str) -> str:
     if _UNSAFE_STRING_RE.search(value):
-        raise ValueError(
-            f"{value!r} contains characters not allowed in dhcpd.conf "
-            "(quotes, backslash, ';', braces, '#' or control characters)"
-        )
+        raise coded("validation.unsafe_string", value=value)
     return value
 
 
@@ -77,14 +75,14 @@ def _option_scalar(value: Any) -> Any:
         return value
     if isinstance(value, str):
         return _safe_string(value)
-    raise ValueError("option values must be strings, numbers, booleans or flat lists of those")
+    raise coded("validation.option_value")
 
 
 def _options(value: dict[str, Any]) -> dict[str, Any]:
     cleaned: dict[str, Any] = {}
     for key, item in value.items():
         if not _OPTION_KEY_RE.match(key):
-            raise ValueError(f"invalid option name {key!r}")
+            raise coded("validation.option_name", name=key)
         cleaned[key] = [_option_scalar(v) for v in item] if isinstance(item, list) else _option_scalar(item)
     return cleaned
 
@@ -92,19 +90,19 @@ def _options(value: dict[str, Any]) -> dict[str, Any]:
 def _top_level_statement(value: str) -> str:
     value = value.strip()
     if not any(pattern.match(value) for pattern in _TOP_LEVEL_STATEMENT_RES):
-        raise ValueError(f"unsupported dhcpd.conf statement: {value!r}")
+        raise coded("validation.statement", value=value)
     return value
 
 
 def _ddns_update_style(value: str | None) -> str | None:
     if value is not None and value not in DDNS_UPDATE_STYLES:
-        raise ValueError(f"ddns-update-style must be one of {sorted(DDNS_UPDATE_STYLES)}")
+        raise coded("validation.ddns_update_style", choices=", ".join(sorted(DDNS_UPDATE_STYLES)))
     return value
 
 
 def _log_facility(value: str) -> str:
     if value not in LOG_FACILITIES:
-        raise ValueError(f"log-facility must be one of {sorted(LOG_FACILITIES)}")
+        raise coded("validation.log_facility", choices=", ".join(sorted(LOG_FACILITIES)))
     return value
 
 

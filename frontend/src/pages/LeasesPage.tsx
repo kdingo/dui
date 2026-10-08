@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import type { Lease } from '../api/types'
 import { AutoRefreshControls } from '../components/AutoRefreshControls'
 import { useAutoRefresh } from '../hooks/useAutoRefresh'
+import { errorMessage } from '../i18n/apiError'
 import { parseIPv4, splitCidr } from '../lib/ipv4'
 import { Flash } from '../components/Flash'
 import { Tabs } from '../components/Tabs'
@@ -24,6 +26,7 @@ function compareCidrAscending(a: string, b: string): number {
 }
 
 export function LeasesPage() {
+  const { t } = useTranslation()
   const [leases, setLeases] = useState<Lease[]>([])
   const [subnet, setSubnet] = useState<string>('all')
   const [error, setError] = useState('')
@@ -34,7 +37,7 @@ export function LeasesPage() {
       setLeases(data.leases)
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load leases')
+      setError(errorMessage(err, t('leases.loadFailed')))
     }
   })
 
@@ -51,7 +54,7 @@ export function LeasesPage() {
   return (
     <div>
       <div className="actions page-header">
-        <h2>Leases</h2>
+        <h2>{t('leases.title')}</h2>
         <AutoRefreshControls
           enabled={enabled}
           intervalMs={intervalMs}
@@ -64,20 +67,20 @@ export function LeasesPage() {
         id="lease-subnet"
         value={subnet}
         onChange={setSubnet}
-        options={[{ value: 'all', label: 'All' }, ...subnets.map((value) => ({ value, label: value }))]}
+        options={[{ value: 'all', label: t('leases.all') }, ...subnets.map((value) => ({ value, label: value }))]}
       />
       <Flash kind="error" message={error} />
       <div className="panel">
         <table>
           <thead>
             <tr>
-              <th>IP</th>
-              <th>MAC</th>
-              <th>Hostname</th>
-              <th>Starts</th>
-              <th>Ends</th>
-              <th>State</th>
-              <th>Subnet</th>
+              <th>{t('leases.ip')}</th>
+              <th>{t('leases.mac')}</th>
+              <th>{t('leases.hostname')}</th>
+              <th>{t('leases.starts')}</th>
+              <th>{t('leases.ends')}</th>
+              <th>{t('leases.state')}</th>
+              <th>{t('leases.subnet')}</th>
             </tr>
           </thead>
           <tbody>
@@ -88,13 +91,19 @@ export function LeasesPage() {
                 <td>{lease.hostname || '—'}</td>
                 <td>{lease.starts || '—'}</td>
                 <td>{lease.ends || '—'}</td>
-                <td>{lease.binding_state || '—'}</td>
+                <td>
+                  {lease.binding_state
+                    ? t(`leases.states.${lease.binding_state}` as 'leases.states.active', {
+                        defaultValue: lease.binding_state,
+                      })
+                    : '—'}
+                </td>
                 <td>{lease.subnet_network || '—'}</td>
               </tr>
             ))}
             {!filtered.length && (
               <tr>
-                <td colSpan={7}>No leases found.</td>
+                <td colSpan={7}>{t('leases.empty')}</td>
               </tr>
             )}
           </tbody>

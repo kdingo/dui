@@ -1,15 +1,19 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 import { api, setCsrfToken } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Flash } from '../components/Flash'
+import { LanguageSelect } from '../components/LanguageSelect'
 import { Logo } from '../components/Logo'
 import { PasswordRequirements } from '../components/PasswordRequirements'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { errorMessage } from '../i18n/apiError'
 import { POP_SPRING } from '../lib/motion'
 import { DEFAULT_POLICY, passwordRequirements } from '../lib/passwordPolicy'
 
 export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
+  const { t } = useTranslation()
   const { user, setUser } = useAuth()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -17,7 +21,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [policy, setPolicy] = useState(DEFAULT_POLICY)
-  const requirements = passwordRequirements(policy, next, user?.username)
+  const requirements = passwordRequirements(t, policy, next, user?.username)
 
   useEffect(() => {
     api
@@ -31,11 +35,11 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
     setError('')
     setSuccess('')
     if (requirements.some((req) => !req.met)) {
-      setError('New password does not meet the password requirements.')
+      setError(t('password.notMet'))
       return
     }
     if (next !== confirm) {
-      setError('New passwords do not match.')
+      setError(t('password.mismatch'))
       return
     }
     try {
@@ -45,9 +49,9 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
       setNext('')
       setConfirm('')
       if (user) setUser({ ...user, must_change_password: false })
-      if (!forced) setSuccess('Password changed. Other sessions have been signed out.')
+      if (!forced) setSuccess(t('password.changed'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Password change failed')
+      setError(errorMessage(err, t('password.failed')))
     }
   }
 
@@ -55,7 +59,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
     <form className="form-grid" onSubmit={handleSubmit}>
       <input type="text" autoComplete="username" value={user?.username ?? ''} readOnly hidden />
       <label>
-        Current password
+        {t('password.current')}
         <input
           type="password"
           value={current}
@@ -65,7 +69,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
         />
       </label>
       <label>
-        New password
+        {t('password.new')}
         <input
           type="password"
           value={next}
@@ -77,7 +81,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
       </label>
       <PasswordRequirements requirements={requirements} />
       <label>
-        Confirm new password
+        {t('password.confirm')}
         <input
           type="password"
           value={confirm}
@@ -87,7 +91,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
         />
       </label>
       <button className="primary" type="submit">
-        Change password
+        {t('password.submit')}
       </button>
       <Flash kind="error" message={error} />
       <Flash kind="success" message={success} />
@@ -97,7 +101,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
   if (!forced) {
     return (
       <div className="card">
-        <h2>Change password</h2>
+        <h2>{t('password.title')}</h2>
         {form}
       </div>
     )
@@ -105,7 +109,10 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
 
   return (
     <div className="login-page">
-      <ThemeToggle className="floating-toggle" />
+      <div className="floating-controls">
+        <LanguageSelect />
+        <ThemeToggle />
+      </div>
       <motion.div
         className="card login-card"
         initial={{ opacity: 0, y: 18, scale: 0.96 }}
@@ -113,8 +120,8 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
         transition={POP_SPRING}
       >
         <Logo size={56} fill="once" className="login-logo" />
-        <h2>Set a new password</h2>
-        <p className="muted">You signed in with a one-time password. Choose your own to continue.</p>
+        <h2>{t('password.forcedTitle')}</h2>
+        <p className="muted">{t('password.forcedSubtitle')}</p>
         {form}
       </motion.div>
     </div>

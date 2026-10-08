@@ -19,6 +19,7 @@ from ..auth.users import (
 )
 from ..auth.policy import PasswordPolicy, load_policy, save_policy
 from ..config import get_settings
+from ..errors import AppError
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 rate_limiter = LoginRateLimiter(
@@ -79,7 +80,7 @@ async def login(payload: LoginRequest, request: Request, response: Response) -> 
     if not user:
         rate_limiter.record_failure(ip_key)
         rate_limiter.record_failure(user_key)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise AppError("auth.invalid_credentials", status.HTTP_401_UNAUTHORIZED)
     rate_limiter.reset(ip_key)
     rate_limiter.reset(user_key)
     csrf = _issue_session(response, user)
@@ -212,7 +213,7 @@ async def patch_user(
     __: None = Depends(verify_csrf),
 ) -> dict[str, list]:
     if payload.role is None and not payload.password:
-        raise HTTPException(status_code=400, detail="No changes provided")
+        raise AppError("user.no_changes")
     if payload.password:
         load_policy().enforce(payload.password, username)
     UserStore().update_user(username, role=payload.role, password=payload.password)

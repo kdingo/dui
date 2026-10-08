@@ -31,25 +31,56 @@ function csrfFromCookie() {
   return match ? decodeURIComponent(match.slice('dui_csrf='.length)) : ''
 }
 
-async function errorDetail(response: Response): Promise<string> {
+/** One FastAPI/pydantic validation problem; `type` and `ctx` are what the UI translates. */
+export interface ApiErrorItem {
+  loc?: (string | number)[]
+  msg?: string
+  type?: string
+  ctx?: Record<string, unknown>
+}
+
+/** Error body: `code` + `params` name a message in locales/<lang> under `server.*` (see backend app/errors.py). */
+export interface ApiErrorBody {
+  detail?: string | ApiErrorItem[]
+  code?: string
+  params?: Record<string, unknown>
+  errors?: ApiErrorItem[]
+  cause?: ApiErrorBody
+}
+
+/** `message` is the server's English text; use `errorMessage()` from i18n/apiError to show it translated. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly body: ApiErrorBody,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+async function apiError(response: Response): Promise<ApiError> {
   let detail = response.statusText
+  let body: ApiErrorBody = {}
+  const text = await response.text()
   try {
-    const data = await response.json()
-    if (Array.isArray(data.detail)) {
+    body = JSON.parse(text)
+    if (Array.isArray(body.detail)) {
       // FastAPI validation errors: [{ loc, msg }, ...]
-      detail = data.detail
-        .map((item: { loc?: unknown[]; msg?: string }) => {
+      detail = body.detail
+        .map((item) => {
           const field = item.loc?.filter((part) => part !== 'body').join('.')
           return field ? `${field}: ${item.msg}` : item.msg
         })
         .join('; ')
     } else {
-      detail = data.detail || JSON.stringify(data)
+      detail = body.detail || text
     }
   } catch {
-    detail = await response.text()
+    detail = text || detail
   }
-  return detail
+  return new ApiError(detail, response.status, body)
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -73,7 +104,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (response.status === 401 && path !== '/api/auth/login') {
       unauthorizedHandler?.()
     }
-    throw new Error(await errorDetail(response))
+    throw await apiError(response)
   }
 
   if (response.status === 204) {
@@ -177,7 +208,7 @@ export const api = {
       if (response.status === 401) {
         unauthorizedHandler?.()
       }
-      throw new Error(await errorDetail(response))
+      throw await apiError(response)
     }
     return response.blob()
   },

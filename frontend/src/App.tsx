@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, setCsrfToken, setUnauthorizedHandler } from './api/client'
 import { AuthContext } from './auth/AuthContext'
 import { ConfirmProvider } from './components/ConfirmDialog'
@@ -35,6 +36,7 @@ function AdminRoute({ user, children }: { user: User | null; children: React.Rea
 }
 
 export default function App() {
+  const { t } = useTranslation()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [serverName, setServerName] = useState('DUI')
@@ -76,7 +78,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="boot" role="status" aria-label="Loading">
+      <div className="boot" role="status" aria-label={t('common.loading')}>
         <Logo size={64} fill="loop" />
       </div>
     )

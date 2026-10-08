@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { intToIPv4 } from '../lib/ipv4'
 
 type IpRangeSliderProps = {
@@ -24,6 +25,7 @@ function LockGlyph() {
 /** Two-handle slider selecting a contiguous IPv4 range within [min, max]. */
 export function IpRangeSlider({ min, max, start, end, onChange, disabled = false }: IpRangeSliderProps) {
   // Which handle was touched last; it stays on top so overlapping handles remain grabbable.
+  const { t } = useTranslation()
   const [active, setActive] = useState<'start' | 'end'>('end')
 
   const span = Math.max(max - min, 1)
@@ -38,14 +40,14 @@ export function IpRangeSlider({ min, max, start, end, onChange, disabled = false
   return (
     <div className={`ip-range${disabled ? ' locked' : ''}`}>
       <div className="ip-range-head">
-        <span>Range</span>
+        <span>{t('ipRange.label')}</span>
         {disabled ? (
           <span className="ip-range-hint">
-            <LockGlyph /> Enter a valid network and mask
+            <LockGlyph /> {t('ipRange.locked')}
           </span>
         ) : (
           <span className="ip-range-count">
-            {count.toLocaleString()} {count === 1 ? 'IP' : 'IPs'}
+            {t('networks.ips', { count })}
           </span>
         )}
       </div>
@@ -64,7 +66,7 @@ export function IpRangeSlider({ min, max, start, end, onChange, disabled = false
           step={1}
           value={lo}
           disabled={disabled}
-          aria-label="Range start"
+          aria-label={t('ipRange.start')}
           aria-valuetext={intToIPv4(lo)}
           style={{ zIndex: startOnTop ? 3 : 2 }}
           onPointerDown={() => setActive('start')}
@@ -78,7 +80,7 @@ export function IpRangeSlider({ min, max, start, end, onChange, disabled = false
           step={1}
           value={hi}
           disabled={disabled}
-          aria-label="Range end"
+          aria-label={t('ipRange.end')}
           aria-valuetext={intToIPv4(hi)}
           style={{ zIndex: startOnTop ? 2 : 3 }}
           onPointerDown={() => setActive('end')}

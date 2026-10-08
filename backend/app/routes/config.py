@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 from pydantic import BaseModel, Field
 
 from ..auth.deps import get_current_user, require_admin, verify_csrf
 from ..dhcp.manager import ConfigManager, DhcpValidationError
+from ..errors import AppError, to_http
 from ..dhcp.models import (
     DhcpConfig,
     DhcpHost,
@@ -39,7 +40,7 @@ async def replace_config(
     try:
         manager.save_config(config, apply=True)
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     return manager.load_config()
 
 
@@ -52,7 +53,7 @@ async def apply_config(
     try:
         manager.apply_config()
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     return {"status": "applied"}
 
 
@@ -77,7 +78,7 @@ async def add_subnet(
     try:
         manager.save_config(config, apply=True)
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     return config
 
 
@@ -95,11 +96,11 @@ async def update_subnet(
             config.subnets[idx] = DhcpSubnet(id=subnet_id, **payload.model_dump())
             break
     else:
-        raise HTTPException(status_code=404, detail="Subnet not found")
+        raise AppError("config.subnet_not_found", 404)
     try:
         manager.save_config(config, apply=True)
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     return config
 
 
@@ -115,7 +116,7 @@ async def delete_subnet(
     try:
         manager.save_config(config, apply=True)
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     return config
 
 
@@ -138,7 +139,7 @@ async def add_host(
     try:
         manager.save_config(config, apply=True)
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     return config
 
 
@@ -156,11 +157,11 @@ async def update_host(
             config.hosts[idx] = DhcpHost(id=host_id, **payload.model_dump())
             break
     else:
-        raise HTTPException(status_code=404, detail="Host not found")
+        raise AppError("config.host_not_found", 404)
     try:
         manager.save_config(config, apply=True)
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     return config
 
 
@@ -176,7 +177,7 @@ async def delete_host(
     try:
         manager.save_config(config, apply=True)
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     return config
 
 
@@ -196,7 +197,7 @@ async def update_options(
     try:
         manager.save_config(config, apply=True)
     except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise to_http(exc) from exc
     return config
 
 
@@ -229,10 +230,8 @@ async def import_config(
     manager = ConfigManager()
     try:
         return manager.import_dhcpd_conf(payload.content)
-    except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (DhcpValidationError, ValueError) as exc:
+        raise to_http(exc) from exc
 
 
 @router.post("/import-zip")
@@ -245,9 +244,7 @@ async def import_config_zip(
     try:
         zip_bytes = await file.read(MAX_ZIP_UPLOAD_BYTES + 1)
         if len(zip_bytes) > MAX_ZIP_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="Zip file is too large")
+            raise AppError("import.zip_too_large", 413)
         return manager.import_bundle(zip_bytes)
-    except DhcpValidationError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (DhcpValidationError, ValueError) as exc:
+        raise to_http(exc) from exc

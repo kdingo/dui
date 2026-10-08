@@ -1293,10 +1293,17 @@ td button.danger {
   padding-block: 0.65rem;
 }
 
-.floating-toggle {
+.floating-controls {
   position: fixed;
   top: 16px;
-  right: 16px;
+  inset-inline-end: 16px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.language-select {
+  width: auto;
 }
 
 .boot {
