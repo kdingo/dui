@@ -13,6 +13,17 @@ export interface PasswordPolicy {
   disallow_username: boolean
 }
 
+export interface SyslogConfig {
+  enabled: boolean
+  host: string
+  port: number
+  protocol: 'udp' | 'tcp'
+  app_name: string
+  leases: boolean
+  server: boolean
+  users: boolean
+}
+
 export interface SubnetUsage {
   id: string
   network: string

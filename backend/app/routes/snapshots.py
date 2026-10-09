@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 from ..auth.deps import get_current_user, require_admin, verify_csrf
 from ..dhcp.manager import ConfigManager, DhcpValidationError
 from ..errors import AppError, to_http
+from ..syslog import Severity, audit
 
 router = APIRouter(prefix="/api/snapshots", tags=["snapshots"])
 
@@ -30,7 +31,8 @@ async def get_snapshot_dhcpd_conf(
 @router.post("/{snapshot_id}/restore")
 async def restore_snapshot(
     snapshot_id: str,
-    _: dict[str, str] = Depends(require_admin),
+    request: Request,
+    user: dict[str, str] = Depends(require_admin),
     __: None = Depends(verify_csrf),
 ) -> dict[str, str]:
     manager = ConfigManager()
@@ -39,25 +41,37 @@ async def restore_snapshot(
     except FileNotFoundError as exc:
         raise to_http(exc, 404) from exc
     except DhcpValidationError as exc:
+        _audit_rejected_restore(snapshot_id, request, user)
         raise to_http(exc) from exc
     except ValueError as exc:
+        _audit_rejected_restore(snapshot_id, request, user)
         inner = to_http(exc)
         raise AppError(
             "snapshot.invalid_config",
             cause=inner if isinstance(inner, AppError) else None,
             reason=inner.detail,
         ) from exc
+    audit("server", "SNAPSHOT", f"Snapshot {snapshot_id} restored", request=request, user=user,
+          severity=Severity.NOTICE, action="snapshot_restore", target=snapshot_id)
     return {"status": "restored", "snapshot_id": snapshot_id}
+
+
+def _audit_rejected_restore(snapshot_id: str, request: Request, user: dict[str, str]) -> None:
+    audit("server", "SNAPSHOT", f"Snapshot {snapshot_id} restore rejected: invalid configuration",
+          request=request, user=user, severity=Severity.WARNING, action="snapshot_restore", target=snapshot_id)
 
 
 @router.delete("/{snapshot_id}")
 async def delete_snapshot(
     snapshot_id: str,
-    _: dict[str, str] = Depends(require_admin),
+    request: Request,
+    user: dict[str, str] = Depends(require_admin),
     __: None = Depends(verify_csrf),
 ) -> dict[str, str]:
     try:
         ConfigManager().delete_snapshot(snapshot_id)
     except FileNotFoundError as exc:
         raise to_http(exc, 404) from exc
+    audit("server", "SNAPSHOT", f"Snapshot {snapshot_id} deleted", request=request, user=user,
+          action="snapshot_delete", target=snapshot_id)
     return {"status": "deleted", "snapshot_id": snapshot_id}

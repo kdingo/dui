@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,6 +50,10 @@ class Settings(BaseSettings):
         return self.data_dir / "password_policy.yaml"
 
     @property
+    def syslog_yaml(self) -> Path:
+        return self.data_dir / "syslog.yaml"
+
+    @property
     def session_secret_file(self) -> Path:
         return self.data_dir / "session.secret"
 
@@ -69,3 +74,17 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def load_server_name(settings: Settings | None = None) -> str:
+    """The admin-chosen display name from server.yaml, else DUI_SERVER_NAME."""
+    settings = settings or get_settings()
+    if settings.server_yaml.exists():
+        try:
+            data = yaml.safe_load(settings.server_yaml.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            data = {}
+        name = data.get("name") if isinstance(data, dict) else None
+        if isinstance(name, str) and name.strip():
+            return name
+    return settings.server_name

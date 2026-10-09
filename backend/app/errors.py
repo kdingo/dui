@@ -74,6 +74,9 @@ MESSAGES: dict[str, str] = {
     "snapshot.empty": "Snapshot {id} is empty",
     "snapshot.no_conf": "Snapshot {id} has no dhcpd.conf",
     "snapshot.invalid_config": "Snapshot contains invalid configuration: {reason}",
+    # syslog
+    "syslog.host_required": "Enter a syslog server to enable syslog",
+    "syslog.send_failed": "Could not send to the syslog server: {reason}",
     # field validation (raised inside pydantic models, so they also appear as 422 item types)
     "validation.cidr": "network must be an IPv4 CIDR (e.g. 192.168.1.0/24)",
     "validation.ipv4": "'{value}' is not a valid IPv4 address",
@@ -84,6 +87,7 @@ MESSAGES: dict[str, str] = {
         "'{value}' contains characters not allowed in dhcpd.conf "
         "(quotes, backslash, ';', braces, '#' or control characters)"
     ),
+    "validation.syslog_host": "'{value}' is not a valid hostname or IP address",
     "validation.option_value": "option values must be strings, numbers, booleans or flat lists of those",
     "validation.option_name": "invalid option name '{name}'",
     "validation.statement": "unsupported dhcpd.conf statement: '{value}'",

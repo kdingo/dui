@@ -6,6 +6,7 @@ import type {
   Snapshot,
   SubnetUsage,
   PasswordPolicy,
+  SyslogConfig,
   User,
 } from './types'
 
@@ -266,6 +267,21 @@ export const api = {
     return request<PasswordPolicy>('/api/auth/password-policy', {
       method: 'PUT',
       body: JSON.stringify(policy),
+    })
+  },
+  syslogConfig() {
+    return request<SyslogConfig>('/api/admin/syslog')
+  },
+  updateSyslogConfig(config: SyslogConfig) {
+    return request<SyslogConfig>('/api/admin/syslog', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    })
+  },
+  testSyslog(config: SyslogConfig) {
+    return request<{ status: string }>('/api/admin/syslog/test', {
+      method: 'POST',
+      body: JSON.stringify(config),
     })
   },
   listUsers() {

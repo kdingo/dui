@@ -17,6 +17,7 @@ DUI is a Dockerized home-network DHCP server with a web management interface. It
 - Config snapshots
 - File-based user authentication with bcrypt hashes
 - Server admin: manage users, control `dhcpd`, restart/stop container
+- Syslog forwarding of lease changes, configuration changes, and user activity
 
 ## Quick start
 
@@ -86,6 +87,25 @@ Mount the folder that holds your certificate and key into the container, then po
 
 Without these variables, DUI generates a self-signed certificate in `/data/tls` on first start and keeps reusing it. To create a new one (for example, after changing `DUI_SERVER_NAME`), delete `/data/tls` and restart the container.
 
+## Syslog forwarding
+
+DUI can send events to a remote syslog server. Admins turn it on and configure it under **Server admin → Syslog**. It is off by default. The settings are stored in `/data/syslog.yaml`.
+
+- **Format:** RFC 5424, sent over UDP or TCP (TCP uses octet-counting framing, RFC 6587), with the `daemon` facility. The HOSTNAME field is the server's display name (set under **Server admin → Server**), with spaces turned into `-` and any non-ASCII characters dropped. There is no TLS, so send to a collector on a trusted network.
+- **Categories** (each can be turned off):
+  - *DHCP lease changes* (MSGID `LEASE`): leases granted (DHCPACK), released, declined, and refused (DHCPNAK). DUI reads these from dhcpd's log as they happen and doesn't replay older lines.
+  - *Server changes* (MSGIDs `CONFIG`, `SNAPSHOT`, `SERVICE`, `SETTINGS`): subnet, fixed-client and option edits, imports, applies, snapshot restores and deletes, dhcpd and container start/stop/restart, the server name, the password policy, and the syslog settings themselves.
+  - *User activity* (MSGIDs `AUTH`, `USER`): successful, failed and rate-limited sign-ins, sign-outs, password changes, and account creation, changes and deletion. Passwords are never sent.
+- Messages carry structured data under `[dui@32473 ...]`, such as `user`, `ip`, `action`, `target`, `mac` and `hostname`.
+- **Send test message** uses the settings currently in the form, even before you save them. With UDP, a successful test only means the packet was sent.
+- Delivery is best effort. If the server is unreachable, messages are dropped (and a warning is logged) rather than slowing down the UI.
+
+Quick check with a local listener:
+
+```bash
+nc -klu 5514        # then point DUI at <this host>:5514 over UDP
+```
+
 ## Volume layout
 
 ```
@@ -95,6 +115,7 @@ Without these variables, DUI generates a self-signed certificate in `/data/tls` 
   server.yaml
   users.yaml        bcrypt hashes (0600)
   session.secret    signs session cookies (0600)
+  syslog.yaml       syslog forwarding settings (0600)
   leases/dhcpd.leases
   snapshots/
   tls/              self-signed certificate (root only)

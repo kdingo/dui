@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import type { DhcpStatus, PasswordPolicy, ServerInfo } from '../api/types'
+import type { DhcpStatus, PasswordPolicy, ServerInfo, SyslogConfig } from '../api/types'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
 import { errorMessage } from '../i18n/apiError'
@@ -15,12 +15,27 @@ const POLICY_RULES = [
   'disallow_username',
 ] as const satisfies readonly (keyof Omit<PasswordPolicy, 'min_length'>)[]
 
+const SYSLOG_CATEGORIES = ['leases', 'server', 'users'] as const satisfies readonly (keyof SyslogConfig)[]
+
+const DEFAULT_SYSLOG: SyslogConfig = {
+  enabled: false,
+  host: '',
+  port: 514,
+  protocol: 'udp',
+  app_name: 'dui',
+  leases: true,
+  server: true,
+  users: true,
+}
+
 export function AdminPage() {
   const { t } = useTranslation()
   const [server, setServer] = useState<ServerInfo | null>(null)
   const [status, setStatus] = useState<DhcpStatus | null>(null)
   const [serverName, setServerName] = useState('')
   const [policy, setPolicy] = useState<PasswordPolicy>(DEFAULT_POLICY)
+  const [syslog, setSyslog] = useState<SyslogConfig>(DEFAULT_SYSLOG)
+  const [syslogTesting, setSyslogTesting] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const confirm = useConfirm()
@@ -39,7 +54,38 @@ export function AdminPage() {
 
   useEffect(() => {
     refresh().catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
+    // Loaded once, not in refresh(), so other cards' saves don't discard unsaved syslog edits.
+    api
+      .syslogConfig()
+      .then(setSyslog)
+      .catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
   }, [])
+
+  async function saveSyslog(event: FormEvent) {
+    event.preventDefault()
+    setError('')
+    setMessage('')
+    try {
+      setSyslog(await api.updateSyslogConfig(syslog))
+      setMessage(t('admin.syslog.saved'))
+    } catch (err) {
+      setError(errorMessage(err, t('admin.syslog.saveFailed')))
+    }
+  }
+
+  async function testSyslog() {
+    setError('')
+    setMessage('')
+    setSyslogTesting(true)
+    try {
+      await api.testSyslog(syslog)
+      setMessage(t('admin.syslog.testSent', { host: syslog.host, port: syslog.port }))
+    } catch (err) {
+      setError(errorMessage(err, t('admin.syslog.testFailed')))
+    } finally {
+      setSyslogTesting(false)
+    }
+  }
 
   async function saveServerName(event: FormEvent) {
     event.preventDefault()
@@ -144,6 +190,69 @@ export function AdminPage() {
             </button>
           </form>
           <p className="muted">{t('admin.policyNote')}</p>
+        </div>
+
+        <div className="card">
+          <h3>{t('admin.syslog.title')}</h3>
+          <form className="form-grid" onSubmit={saveSyslog}>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={syslog.enabled}
+                onChange={(e) => setSyslog({ ...syslog, enabled: e.target.checked })}
+              />
+              {t('admin.syslog.enabled')}
+            </label>
+            <label>
+              {t('admin.syslog.host')}
+              <input
+                value={syslog.host}
+                placeholder="192.168.1.10"
+                onChange={(e) => setSyslog({ ...syslog, host: e.target.value })}
+                required={syslog.enabled}
+              />
+            </label>
+            <label>
+              {t('admin.syslog.port')}
+              <input
+                type="number"
+                min={1}
+                max={65535}
+                value={syslog.port}
+                onChange={(e) => setSyslog({ ...syslog, port: Number(e.target.value) })}
+                required
+              />
+            </label>
+            <label>
+              {t('admin.syslog.protocol')}
+              <select
+                value={syslog.protocol}
+                onChange={(e) => setSyslog({ ...syslog, protocol: e.target.value as SyslogConfig['protocol'] })}
+              >
+                <option value="udp">UDP</option>
+                <option value="tcp">TCP</option>
+              </select>
+            </label>
+            {SYSLOG_CATEGORIES.map((category) => (
+              <label key={category} className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={syslog[category]}
+                  onChange={(e) => setSyslog({ ...syslog, [category]: e.target.checked })}
+                />
+                {t(`admin.syslog.categories.${category}`)}
+              </label>
+            ))}
+            <div className="actions">
+              <button className="secondary" type="button" disabled={!syslog.host || syslogTesting} onClick={testSyslog}>
+                {t('admin.syslog.test')}
+              </button>
+              <button className="primary" type="submit">
+                {t('admin.syslog.save')}
+              </button>
+            </div>
+          </form>
+          <p className="muted">{t('admin.syslog.note')}</p>
         </div>
 
         <div className="card">

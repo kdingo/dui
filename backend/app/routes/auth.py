@@ -20,6 +20,7 @@ from ..auth.users import (
 from ..auth.policy import PasswordPolicy, load_policy, save_policy
 from ..config import get_settings
 from ..errors import AppError
+from ..syslog import Severity, audit
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 rate_limiter = LoginRateLimiter(
@@ -74,16 +75,24 @@ def _issue_session(response: Response, user: UserRecord) -> str:
 async def login(payload: LoginRequest, request: Request, response: Response) -> LoginResponse:
     ip_key = f"ip:{get_client_ip(request)}"
     user_key = f"user:{payload.username.strip().lower()}"
-    rate_limiter.check(ip_key)
-    rate_limiter.check(user_key, rate_limiter.max_attempts * USERNAME_ATTEMPT_MULTIPLIER)
+    try:
+        rate_limiter.check(ip_key)
+        rate_limiter.check(user_key, rate_limiter.max_attempts * USERNAME_ATTEMPT_MULTIPLIER)
+    except AppError:
+        audit("users", "AUTH", f"Login blocked by rate limit for {payload.username!r}", request=request,
+              user=payload.username, severity=Severity.WARNING, action="login_rate_limited")
+        raise
     user = UserStore().verify_password(payload.username, payload.password)
     if not user:
         rate_limiter.record_failure(ip_key)
         rate_limiter.record_failure(user_key)
+        audit("users", "AUTH", f"Failed login for {payload.username!r}", request=request,
+              user=payload.username, severity=Severity.WARNING, action="login_failed")
         raise AppError("auth.invalid_credentials", status.HTTP_401_UNAUTHORIZED)
     rate_limiter.reset(ip_key)
     rate_limiter.reset(user_key)
     csrf = _issue_session(response, user)
+    audit("users", "AUTH", f"{user.username} logged in", request=request, user=user.username, action="login")
     return LoginResponse(
         username=user.username,
         role=user.role,
@@ -98,8 +107,10 @@ async def logout(request: Request, response: Response, _: None = Depends(verify_
     if token:
         try:
             session = SessionManager().load_session(token)
+            username = str(session.get("username", ""))
             # Revoke server-side so a copied cookie stops working too.
-            UserStore().bump_session_version(str(session.get("username", "")))
+            UserStore().bump_session_version(username)
+            audit("users", "AUTH", f"{username} logged out", request=request, user=username, action="logout")
         except HTTPException:
             pass
     response.delete_cookie("dui_session", path="/")
@@ -125,12 +136,21 @@ class PasswordChangeRequest(BaseModel):
 @router.post("/password", response_model=LoginResponse)
 async def change_password(
     payload: PasswordChangeRequest,
+    request: Request,
     response: Response,
     user: dict = Depends(get_current_user),
     __: None = Depends(verify_csrf),
 ) -> LoginResponse:
     load_policy().enforce(payload.new_password, user["username"])
-    record = UserStore().change_own_password(user["username"], payload.current_password, payload.new_password)
+    try:
+        record = UserStore().change_own_password(user["username"], payload.current_password, payload.new_password)
+    except AppError as exc:
+        if exc.code == "user.current_password_incorrect":
+            audit("users", "AUTH", f"{user['username']} gave a wrong current password when changing it",
+                  request=request, user=user, severity=Severity.WARNING, action="password_change_failed")
+        raise
+    audit("users", "AUTH", f"{user['username']} changed their password", request=request, user=user,
+          action="password_change")
     # The change revoked every session, including this one; hand back a fresh one.
     csrf = _issue_session(response, record)
     return LoginResponse(username=record.username, role=record.role, csrf_token=csrf)
@@ -166,10 +186,13 @@ async def get_password_policy(_: dict = Depends(get_current_user)) -> PasswordPo
 @router.put("/password-policy", response_model=PasswordPolicy)
 async def update_password_policy(
     payload: PasswordPolicy,
-    _: dict = Depends(require_admin),
+    request: Request,
+    user: dict = Depends(require_admin),
     __: None = Depends(verify_csrf),
 ) -> PasswordPolicy:
     save_policy(payload)
+    audit("server", "SETTINGS", "Password policy changed", request=request, user=user, action="password_policy",
+          **{k: str(v).lower() for k, v in payload.model_dump().items()})
     return payload
 
 
@@ -181,27 +204,34 @@ async def list_users(_: dict = Depends(require_admin)) -> dict[str, list]:
 @router.put("/users")
 async def update_users(
     payload: UsersUpdateRequest,
-    _: dict = Depends(require_admin),
+    request: Request,
+    user: dict = Depends(require_admin),
     __: None = Depends(verify_csrf),
 ) -> dict[str, list]:
     policy = load_policy()
     password_hashes: dict[str, str] = {}
-    for user in payload.users:
-        if user.password:
-            policy.enforce(user.password, user.username)
-            password_hashes[user.username] = hash_password(user.password)
+    for entry in payload.users:
+        if entry.password:
+            policy.enforce(entry.password, entry.username)
+            password_hashes[entry.username] = hash_password(entry.password)
     UserStore().save_users([u.model_dump(exclude={"password"}) for u in payload.users], password_hashes)
+    audit("users", "USER", "User list replaced", request=request, user=user, action="users_replace",
+          users=",".join(f"{u.username}:{u.role}" for u in payload.users),
+          password_resets=",".join(password_hashes))
     return {"users": UserStore().list_users()}
 
 
 @router.post("/users")
 async def create_user(
     payload: UserCreateRequest,
-    _: dict = Depends(require_admin),
+    request: Request,
+    user: dict = Depends(require_admin),
     __: None = Depends(verify_csrf),
 ) -> dict[str, list]:
     load_policy().enforce(payload.password, payload.username)
     UserStore().create_user(payload.username, payload.password, payload.role)
+    audit("users", "USER", f"User {payload.username} created ({payload.role})", request=request, user=user,
+          action="user_create", target=payload.username, role=payload.role)
     return {"users": UserStore().list_users()}
 
 
@@ -209,7 +239,8 @@ async def create_user(
 async def patch_user(
     username: str,
     payload: UserPatchRequest,
-    _: dict = Depends(require_admin),
+    request: Request,
+    user: dict = Depends(require_admin),
     __: None = Depends(verify_csrf),
 ) -> dict[str, list]:
     if payload.role is None and not payload.password:
@@ -217,14 +248,23 @@ async def patch_user(
     if payload.password:
         load_policy().enforce(payload.password, username)
     UserStore().update_user(username, role=payload.role, password=payload.password)
+    changes = [f"role={payload.role}"] if payload.role else []
+    if payload.password:
+        changes.append("password reset")
+    audit("users", "USER", f"User {username} updated: {', '.join(changes)}", request=request, user=user,
+          action="user_update", target=username, role=payload.role,
+          password_reset="true" if payload.password else None)
     return {"users": UserStore().list_users()}
 
 
 @router.delete("/users/{username}")
 async def delete_user(
     username: str,
-    _: dict = Depends(require_admin),
+    request: Request,
+    user: dict = Depends(require_admin),
     __: None = Depends(verify_csrf),
 ) -> dict[str, list]:
     UserStore().delete_user(username)
+    audit("users", "USER", f"User {username} deleted", request=request, user=user, action="user_delete",
+          target=username)
     return {"users": UserStore().list_users()}

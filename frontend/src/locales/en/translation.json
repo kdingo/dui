@@ -216,7 +216,26 @@
     "stopContainerTitle": "Stop the container?",
     "restartContainerTitle": "Restart the container?",
     "stopContainerMessage": "The web UI and DHCP service will go offline until the container is started again.",
-    "restartContainerMessage": "The web UI and DHCP service will be briefly unavailable."
+    "restartContainerMessage": "The web UI and DHCP service will be briefly unavailable.",
+    "syslog": {
+      "title": "Syslog",
+      "enabled": "Send events to a syslog server",
+      "host": "Syslog server",
+      "port": "Port",
+      "protocol": "Protocol",
+      "categories": {
+        "leases": "DHCP lease changes",
+        "server": "Server and configuration changes",
+        "users": "User activity (sign-ins, account changes)"
+      },
+      "test": "Send test message",
+      "save": "Save syslog settings",
+      "saved": "Syslog settings saved.",
+      "saveFailed": "Saving the syslog settings failed",
+      "testSent": "Test message sent to {{host}}:{{port}}.",
+      "testFailed": "Sending the test message failed",
+      "note": "Messages are in RFC 5424 format."
+    }
   },
   "users": {
     "title": "Users",
@@ -273,7 +292,10 @@
     "role": "Role",
     "min_length": "Minimum length",
     "content": "dhcpd.conf",
-    "file": "Zip file"
+    "file": "Zip file",
+    "host": "Syslog server",
+    "port": "Port",
+    "app_name": "App name"
   },
   "validation": {
     "missing": "Field required",
@@ -365,6 +387,10 @@
       "no_conf": "Snapshot {{id}} has no dhcpd.conf",
       "invalid_config": "Snapshot contains invalid configuration: {{reason}}"
     },
+    "syslog": {
+      "host_required": "Enter a syslog server to enable syslog",
+      "send_failed": "Could not send to the syslog server: {{reason}}"
+    },
     "validation": {
       "cidr": "network must be an IPv4 CIDR (e.g. 192.168.1.0/24)",
       "ipv4": "'{{value}}' is not a valid IPv4 address",
@@ -376,7 +402,8 @@
       "option_name": "invalid option name '{{name}}'",
       "statement": "unsupported dhcpd.conf statement: '{{value}}'",
       "ddns_update_style": "ddns-update-style must be one of {{choices}}",
-      "log_facility": "log-facility must be one of {{choices}}"
+      "log_facility": "log-facility must be one of {{choices}}",
+      "syslog_host": "'{{value}}' is not a valid hostname or IP address"
     }
   }
 }
