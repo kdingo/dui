@@ -10,7 +10,7 @@ function isCodedEntry(value: unknown): value is { code: string; params?: Params 
   return typeof value === 'object' && value !== null && typeof (value as { code?: unknown }).code === 'string'
 }
 
-/** Params that are lists of `{code, params}` (e.g. password policy problems) become a translated list. */
+/** Params that are lists of `{code, params}` (e.g. a list of nested problems) become a translated list. */
 function translateParams(params: Params): Params {
   const result: Params = {}
   for (const [name, value] of Object.entries(params)) {

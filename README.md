@@ -29,7 +29,7 @@ DUI is a Dockerized home-network DHCP server with a web management interface. It
 docker compose up -d --build
 ```
 
-3. Get the one-time admin password from the first-start log, then sign in at `https://<host>:8067`. You'll be asked to choose your own password that meets the password policy (by default, 8+ characters).
+3. Get the one-time admin password from the first-start log, then sign in at `https://<host>:8067`. You'll be asked to choose your own password.
 
 ```bash
 docker compose logs dui | grep "DUI login"
@@ -50,7 +50,7 @@ docker compose exec dui python3 -m app.auth.cli reset-password admin
 - Disable any existing DHCP server on your router or host before starting DUI.
 - All persistent data is stored in the named Docker volume `dui-data` mounted at `/data`. Generated files stay in the volume, not on the host filesystem.
 - DHCP logs (`/var/log/dui`) stay inside the container and are discarded when it is recreated.
-- `users.yaml` is created on first start with a random one-time admin password, or from `DUI_ADMIN_PASSWORD` (must meet the password policy) if set. Later image rebuilds don't overwrite it. Remove `DUI_ADMIN_PASSWORD` from your compose file after the first start.
+- `users.yaml` is created on first start with a random one-time admin password, or from `DUI_ADMIN_PASSWORD` if set. Later image rebuilds don't overwrite it. Remove `DUI_ADMIN_PASSWORD` from your compose file after the first start.
 - Upgrading from an earlier release: accounts still using the old default password (`admin`/`dui`) must choose a new one at their next sign-in. The leases file moves to `/data/leases/`. On every start, `dhcpd.conf` is regenerated from validated settings, and any unsafe statements are removed and logged.
 
 ### Environment variables
@@ -94,7 +94,7 @@ DUI can send events to a remote syslog server. Admins turn it on and configure i
 - **Format:** RFC 5424, sent over UDP or TCP (TCP uses octet-counting framing, RFC 6587), with the `daemon` facility. The HOSTNAME field is the server's display name (set under **Server admin → Server**), with spaces turned into `-` and any non-ASCII characters dropped. There is no TLS, so send to a collector on a trusted network.
 - **Categories** (each can be turned off):
   - *DHCP lease changes* (MSGID `LEASE`): leases granted (DHCPACK), released, declined, and refused (DHCPNAK). DUI reads these from dhcpd's log as they happen and doesn't replay older lines.
-  - *Server changes* (MSGIDs `CONFIG`, `SNAPSHOT`, `SERVICE`, `SETTINGS`): subnet, fixed-client and option edits, imports, applies, snapshot restores and deletes, dhcpd and container start/stop/restart, the server name, the password policy, and the syslog settings themselves.
+  - *Server changes* (MSGIDs `CONFIG`, `SNAPSHOT`, `SERVICE`, `SETTINGS`): subnet, fixed-client and option edits, imports, applies, snapshot restores and deletes, dhcpd and container start/stop/restart, the server name, and the syslog settings themselves.
   - *User activity* (MSGIDs `AUTH`, `USER`): successful, failed and rate-limited sign-ins, sign-outs, password changes, and account creation, changes and deletion. Passwords are never sent.
 - Messages carry structured data under `[dui@32473 ...]`, such as `user`, `ip`, `action`, `target`, `mac` and `hostname`.
 - **Send test message** uses the settings currently in the form, even before you save them. With UDP, a successful test only means the packet was sent.
@@ -171,7 +171,7 @@ DUI controls the DHCP server for your whole network. Anyone who can change its s
 - The UI is served over HTTPS, cookies are `Secure`, `HttpOnly` and `SameSite=Strict`, and nginx sends a strict Content-Security-Policy.
 - Requests that change anything need a CSRF token and must come from the same origin. There's no CORS access.
 - Sessions are checked against `users.yaml` on every request, so logout, password changes, role changes and deleted users take effect immediately.
-- Logins are rate-limited per client IP and per username. Admins choose the password policy under **Server admin → Password policy**: a minimum length (8–72, default 8) and optional requirements for lowercase, uppercase, digits and symbols, and for not containing the username. It is stored in `/data/password_policy.yaml` and applies whenever a password is set; existing passwords keep working.
+- Logins are rate-limited per client IP and per username. There is no password policy or minimum length; passwords are limited to 72 bytes (bcrypt's maximum).
 - Every field written to `dhcpd.conf` is validated, and imports are parsed and regenerated rather than written as-is. Statements that can run commands or read files (`on commit`, `execute`, `include`, `omapi-*`, `key` and similar) are rejected.
 - Exports contain only the DHCP configuration (`dhcpd.conf`, `config.json`, `server.yaml`). Imports never replace users or the session secret. The exported zip still describes your network, so store it carefully.
 - The API runs as an unprivileged `dui` user. dhcpd drops to a `dhcpd` user after binding its sockets. The container keeps only the capabilities it needs and sets `no-new-privileges`.

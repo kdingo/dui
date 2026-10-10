@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useState } from 'react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { api, setCsrfToken } from '../api/client'
@@ -6,11 +6,9 @@ import { useAuth } from '../auth/AuthContext'
 import { Flash } from '../components/Flash'
 import { LanguageSelect } from '../components/LanguageSelect'
 import { Logo } from '../components/Logo'
-import { PasswordRequirements } from '../components/PasswordRequirements'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { errorMessage } from '../i18n/apiError'
 import { POP_SPRING } from '../lib/motion'
-import { DEFAULT_POLICY, passwordRequirements } from '../lib/passwordPolicy'
 
 export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
   const { t } = useTranslation()
@@ -20,24 +18,11 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [policy, setPolicy] = useState(DEFAULT_POLICY)
-  const requirements = passwordRequirements(t, policy, next, user?.username)
-
-  useEffect(() => {
-    api
-      .passwordPolicy()
-      .then(setPolicy)
-      .catch(() => undefined)
-  }, [])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError('')
     setSuccess('')
-    if (requirements.some((req) => !req.met)) {
-      setError(t('password.notMet'))
-      return
-    }
     if (next !== confirm) {
       setError(t('password.mismatch'))
       return
@@ -75,11 +60,9 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
           value={next}
           onChange={(e) => setNext(e.target.value)}
           autoComplete="new-password"
-          minLength={policy.min_length}
           required
         />
       </label>
-      <PasswordRequirements requirements={requirements} />
       <label>
         {t('password.confirm')}
         <input

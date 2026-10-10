@@ -16,8 +16,7 @@ import yaml
 
 from ..config import get_settings
 from ..fileutil import write_private_text
-from .policy import load_policy
-from .users import UserStore, hash_password
+from .users import MAX_PASSWORD_LENGTH, UserStore, hash_password
 
 
 def _banner(username: str, password: str) -> None:
@@ -67,8 +66,8 @@ def init_users() -> int:
     generated = not password
     if generated:
         password = secrets.token_urlsafe(12)
-    elif problems := load_policy(settings).problems(password, "admin"):
-        print(f"DUI_ADMIN_PASSWORD does not meet the password policy: needs {', '.join(problems)}", file=sys.stderr)
+    elif len(password.encode()) > MAX_PASSWORD_LENGTH:
+        print(f"DUI_ADMIN_PASSWORD must be at most {MAX_PASSWORD_LENGTH} bytes", file=sys.stderr)
         return 1
     entry = {"username": "admin", "role": "admin", "password_hash": hash_password(password), "session_version": 0}
     if generated:

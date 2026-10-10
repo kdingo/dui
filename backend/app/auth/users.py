@@ -21,6 +21,12 @@ MAX_PASSWORD_LENGTH = 72  # bcrypt ignores bytes beyond 72
 USERNAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$"
 
 
+def check_password_length(password: str) -> None:
+    """Reject passwords bcrypt would silently truncate; there is no other strength rule."""
+    if len(password.encode()) > MAX_PASSWORD_LENGTH:
+        raise AppError("password.too_long", max=MAX_PASSWORD_LENGTH)
+
+
 @dataclass
 class UserRecord:
     username: str

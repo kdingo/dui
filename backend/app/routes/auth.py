@@ -14,10 +14,10 @@ from ..auth.users import (
     SessionManager,
     UserRecord,
     UserStore,
+    check_password_length,
     get_client_ip,
     hash_password,
 )
-from ..auth.policy import PasswordPolicy, load_policy, save_policy
 from ..config import get_settings
 from ..errors import AppError
 from ..syslog import Severity, audit
@@ -31,7 +31,7 @@ rate_limiter = LoginRateLimiter(
 USERNAME_ATTEMPT_MULTIPLIER = 4
 
 Username = Annotated[str, Field(pattern=USERNAME_PATTERN)]
-# Strength rules come from the admin-chosen policy (auth/policy.py), checked in each handler.
+# No strength rules; handlers only reject passwords longer than bcrypt's 72-byte limit.
 NewPassword = Annotated[str, Field(min_length=1, max_length=1024)]
 
 
@@ -141,7 +141,7 @@ async def change_password(
     user: dict = Depends(get_current_user),
     __: None = Depends(verify_csrf),
 ) -> LoginResponse:
-    load_policy().enforce(payload.new_password, user["username"])
+    check_password_length(payload.new_password)
     try:
         record = UserStore().change_own_password(user["username"], payload.current_password, payload.new_password)
     except AppError as exc:
@@ -177,25 +177,6 @@ class UserPatchRequest(BaseModel):
     password: NewPassword | None = None
 
 
-@router.get("/password-policy", response_model=PasswordPolicy)
-async def get_password_policy(_: dict = Depends(get_current_user)) -> PasswordPolicy:
-    # Readable by every signed-in user so password forms can show the rules.
-    return load_policy()
-
-
-@router.put("/password-policy", response_model=PasswordPolicy)
-async def update_password_policy(
-    payload: PasswordPolicy,
-    request: Request,
-    user: dict = Depends(require_admin),
-    __: None = Depends(verify_csrf),
-) -> PasswordPolicy:
-    save_policy(payload)
-    audit("server", "SETTINGS", "Password policy changed", request=request, user=user, action="password_policy",
-          **{k: str(v).lower() for k, v in payload.model_dump().items()})
-    return payload
-
-
 @router.get("/users")
 async def list_users(_: dict = Depends(require_admin)) -> dict[str, list]:
     return {"users": UserStore().list_users()}
@@ -208,11 +189,10 @@ async def update_users(
     user: dict = Depends(require_admin),
     __: None = Depends(verify_csrf),
 ) -> dict[str, list]:
-    policy = load_policy()
     password_hashes: dict[str, str] = {}
     for entry in payload.users:
         if entry.password:
-            policy.enforce(entry.password, entry.username)
+            check_password_length(entry.password)
             password_hashes[entry.username] = hash_password(entry.password)
     UserStore().save_users([u.model_dump(exclude={"password"}) for u in payload.users], password_hashes)
     audit("users", "USER", "User list replaced", request=request, user=user, action="users_replace",
@@ -228,7 +208,7 @@ async def create_user(
     user: dict = Depends(require_admin),
     __: None = Depends(verify_csrf),
 ) -> dict[str, list]:
-    load_policy().enforce(payload.password, payload.username)
+    check_password_length(payload.password)
     UserStore().create_user(payload.username, payload.password, payload.role)
     audit("users", "USER", f"User {payload.username} created ({payload.role})", request=request, user=user,
           action="user_create", target=payload.username, role=payload.role)
@@ -246,7 +226,7 @@ async def patch_user(
     if payload.role is None and not payload.password:
         raise AppError("user.no_changes")
     if payload.password:
-        load_policy().enforce(payload.password, username)
+        check_password_length(payload.password)
     UserStore().update_user(username, role=payload.role, password=payload.password)
     changes = [f"role={payload.role}"] if payload.role else []
     if payload.password:

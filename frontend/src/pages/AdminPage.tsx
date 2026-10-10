@@ -1,19 +1,10 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import type { DhcpStatus, PasswordPolicy, ServerInfo, SyslogConfig } from '../api/types'
+import type { DhcpStatus, ServerInfo, SyslogConfig } from '../api/types'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
 import { errorMessage } from '../i18n/apiError'
-import { DEFAULT_POLICY, POLICY_MAX_LENGTH, POLICY_MIN_LENGTH_FLOOR } from '../lib/passwordPolicy'
-
-const POLICY_RULES = [
-  'require_lowercase',
-  'require_uppercase',
-  'require_digit',
-  'require_symbol',
-  'disallow_username',
-] as const satisfies readonly (keyof Omit<PasswordPolicy, 'min_length'>)[]
 
 const SYSLOG_CATEGORIES = ['leases', 'server', 'users'] as const satisfies readonly (keyof SyslogConfig)[]
 
@@ -33,7 +24,6 @@ export function AdminPage() {
   const [server, setServer] = useState<ServerInfo | null>(null)
   const [status, setStatus] = useState<DhcpStatus | null>(null)
   const [serverName, setServerName] = useState('')
-  const [policy, setPolicy] = useState<PasswordPolicy>(DEFAULT_POLICY)
   const [syslog, setSyslog] = useState<SyslogConfig>(DEFAULT_SYSLOG)
   const [syslogTesting, setSyslogTesting] = useState(false)
   const [error, setError] = useState('')
@@ -41,13 +31,8 @@ export function AdminPage() {
   const confirm = useConfirm()
 
   async function refresh() {
-    const [serverInfo, dhcpStatus, passwordPolicy] = await Promise.all([
-      api.serverInfo(),
-      api.dhcpStatus(),
-      api.passwordPolicy(),
-    ])
+    const [serverInfo, dhcpStatus] = await Promise.all([api.serverInfo(), api.dhcpStatus()])
     setServer(serverInfo)
-    setPolicy(passwordPolicy)
     setServerName(serverInfo.name)
     setStatus(dhcpStatus)
   }
@@ -100,18 +85,6 @@ export function AdminPage() {
     }
   }
 
-  async function savePolicy(event: FormEvent) {
-    event.preventDefault()
-    setError('')
-    setMessage('')
-    try {
-      setPolicy(await api.updatePasswordPolicy(policy))
-      setMessage(t('admin.policySaved'))
-    } catch (err) {
-      setError(errorMessage(err, t('admin.policyFailed')))
-    }
-  }
-
   async function dhcpAction(action: 'start' | 'stop' | 'restart') {
     setError('')
     setMessage('')
@@ -159,37 +132,6 @@ export function AdminPage() {
               {t('admin.serverInfo', { interface: server.interface, port: server.http_port })}
             </p>
           )}
-        </div>
-
-        <div className="card">
-          <h3>{t('admin.policyTitle')}</h3>
-          <form className="form-grid" onSubmit={savePolicy}>
-            <label>
-              {t('admin.minLength', { min: POLICY_MIN_LENGTH_FLOOR, max: POLICY_MAX_LENGTH })}
-              <input
-                type="number"
-                min={POLICY_MIN_LENGTH_FLOOR}
-                max={POLICY_MAX_LENGTH}
-                value={policy.min_length}
-                onChange={(e) => setPolicy({ ...policy, min_length: Number(e.target.value) })}
-                required
-              />
-            </label>
-            {POLICY_RULES.map((rule) => (
-              <label key={rule} className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={policy[rule]}
-                  onChange={(e) => setPolicy({ ...policy, [rule]: e.target.checked })}
-                />
-                {t(`admin.rules.${rule}`)}
-              </label>
-            ))}
-            <button className="primary" type="submit">
-              {t('admin.savePolicy')}
-            </button>
-          </form>
-          <p className="muted">{t('admin.policyNote')}</p>
         </div>
 
         <div className="card">

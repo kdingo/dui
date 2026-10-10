@@ -38,15 +38,7 @@ MESSAGES: dict[str, str] = {
     "user.current_password_incorrect": "Current password is incorrect",
     "user.password_unchanged": "New password must differ from the current one",
     "user.no_changes": "No changes provided",
-    # password policy; ``password.policy`` carries a ``problems`` list of the codes below
-    "password.policy": "Password does not meet the policy: needs {problems}",
-    "password.min_length": "at least {min} characters",
-    "password.max_bytes": "at most {max} bytes",
-    "password.lowercase": "a lowercase letter",
-    "password.uppercase": "an uppercase letter",
-    "password.digit": "a digit",
-    "password.symbol": "a symbol",
-    "password.no_username": "no username in it",
+    "password.too_long": "Password must be at most {max} bytes",
     # DHCP service
     "dhcp.invalid_action": "Invalid action",
     "dhcp.start_failed": "Failed to start dhcpd",

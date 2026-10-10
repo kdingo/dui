@@ -9,7 +9,7 @@ from ..errors import AppError
 from .users import SessionManager, UserStore
 
 # Endpoints a user who must change their password may still reach.
-PASSWORD_CHANGE_ALLOWED_PATHS = {"/api/auth/me", "/api/auth/password", "/api/auth/password-policy"}
+PASSWORD_CHANGE_ALLOWED_PATHS = {"/api/auth/me", "/api/auth/password"}
 
 
 async def get_current_user(request: Request) -> dict[str, Any]:

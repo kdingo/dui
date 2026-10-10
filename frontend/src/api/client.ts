@@ -5,7 +5,6 @@ import type {
   ServerInfo,
   Snapshot,
   SubnetUsage,
-  PasswordPolicy,
   SyslogConfig,
   User,
 } from './types'
@@ -259,15 +258,6 @@ export const api = {
   },
   containerRestart() {
     return request<{ status: string }>('/api/admin/container/restart', { method: 'POST' })
-  },
-  passwordPolicy() {
-    return request<PasswordPolicy>('/api/auth/password-policy')
-  },
-  updatePasswordPolicy(policy: PasswordPolicy) {
-    return request<PasswordPolicy>('/api/auth/password-policy', {
-      method: 'PUT',
-      body: JSON.stringify(policy),
-    })
   },
   syslogConfig() {
     return request<SyslogConfig>('/api/admin/syslog')

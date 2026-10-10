@@ -4,9 +4,7 @@ import { api } from '../api/client'
 import type { User } from '../api/types'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Flash } from '../components/Flash'
-import { PasswordRequirements } from '../components/PasswordRequirements'
 import { errorMessage } from '../i18n/apiError'
-import { DEFAULT_POLICY, passwordRequirements } from '../lib/passwordPolicy'
 
 const emptyForm = {
   username: '',
@@ -21,7 +19,6 @@ export function UsersPage() {
   const [editingUsername, setEditingUsername] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [policy, setPolicy] = useState(DEFAULT_POLICY)
   const confirm = useConfirm()
 
   const adminCount = users.filter((user) => user.role === 'admin').length
@@ -38,10 +35,6 @@ export function UsersPage() {
       .listUsers()
       .then((result) => setUsers(result.users))
       .catch((err) => setError(errorMessage(err, t('common.loadFailed'))))
-    api
-      .passwordPolicy()
-      .then(setPolicy)
-      .catch(() => undefined)
   }, [])
 
   function resetForm() {
@@ -175,15 +168,9 @@ export function UsersPage() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required={!editingUsername}
-            minLength={policy.min_length}
             autoComplete="new-password"
           />
         </label>
-        {(form.password || !editingUsername) && (
-          <PasswordRequirements
-            requirements={passwordRequirements(t, policy, form.password, editingUsername ?? form.username)}
-          />
-        )}
         <div className="actions">
           <button className="primary" type="submit">
             {editingUsername ? t('users.save') : t('users.create')}

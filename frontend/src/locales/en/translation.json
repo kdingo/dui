@@ -55,22 +55,9 @@
     "new": "New password",
     "confirm": "Confirm new password",
     "submit": "Change password",
-    "notMet": "New password does not meet the password requirements.",
     "mismatch": "New passwords do not match.",
     "changed": "Password changed. Other sessions have been signed out.",
-    "failed": "Password change failed",
-    "requirements": {
-      "label": "Password requirements",
-      "met": "(met)",
-      "notMet": "(not met)",
-      "minLength": "At least {{min}} characters",
-      "lowercase": "A lowercase letter",
-      "uppercase": "An uppercase letter",
-      "digit": "A digit",
-      "symbol": "A symbol",
-      "noUsername": "Does not contain the username",
-      "maxBytes": "At most {{max}} bytes"
-    }
+    "failed": "Password change failed"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -186,19 +173,6 @@
     "saveName": "Save name",
     "nameUpdated": "Server name updated.",
     "serverInfo": "Interface: {{interface}} · Port: {{port}}",
-    "policyTitle": "Password policy",
-    "minLength": "Minimum length ({{min}}–{{max}})",
-    "rules": {
-      "require_lowercase": "Require a lowercase letter",
-      "require_uppercase": "Require an uppercase letter",
-      "require_digit": "Require a digit",
-      "require_symbol": "Require a symbol",
-      "disallow_username": "Reject passwords containing the username"
-    },
-    "savePolicy": "Save policy",
-    "policySaved": "Password policy saved. It applies to passwords set from now on.",
-    "policyFailed": "Saving the password policy failed",
-    "policyNote": "Existing passwords keep working; the policy is checked whenever a password is set.",
     "dhcpTitle": "DHCP service",
     "running": "Running",
     "stopped": "Stopped",
@@ -347,14 +321,7 @@
       "no_changes": "No changes provided"
     },
     "password": {
-      "policy": "Password does not meet the policy: needs {{problems}}",
-      "min_length": "at least {{min}} characters",
-      "max_bytes": "at most {{max}} bytes",
-      "lowercase": "a lowercase letter",
-      "uppercase": "an uppercase letter",
-      "digit": "a digit",
-      "symbol": "a symbol",
-      "no_username": "no username in it"
+      "too_long": "Password must be at most {{max}} bytes"
     },
     "dhcp": {
       "invalid_action": "Invalid action",

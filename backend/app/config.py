@@ -46,10 +46,6 @@ class Settings(BaseSettings):
         return self.users_file or (self.data_dir / "users.yaml")
 
     @property
-    def password_policy_yaml(self) -> Path:
-        return self.data_dir / "password_policy.yaml"
-
-    @property
     def syslog_yaml(self) -> Path:
         return self.data_dir / "syslog.yaml"
 

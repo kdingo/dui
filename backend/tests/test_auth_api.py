@@ -112,8 +112,9 @@ class AuthApiTests(unittest.TestCase):
         self.assertEqual(client.get("/api/dashboard").status_code, 403)
         self.assertTrue(client.get("/api/auth/me").json()["must_change_password"])
 
-        short = client.post("/api/auth/password", json={"current_password": ADMIN_PW, "new_password": "short"})
-        self.assertEqual(short.status_code, 400)
+        too_long = client.post("/api/auth/password", json={"current_password": ADMIN_PW, "new_password": "x" * 73})
+        self.assertEqual(too_long.status_code, 400)
+        self.assertEqual(too_long.json()["code"], "password.too_long")
         changed = client.post(
             "/api/auth/password", json={"current_password": ADMIN_PW, "new_password": "a-much-better-password"}
         )
@@ -122,50 +123,17 @@ class AuthApiTests(unittest.TestCase):
         self.assertFalse(client.get("/api/auth/me").json()["must_change_password"])
         self.assertNotEqual(client.get("/api/auth/users").status_code, 403)
 
-    def test_password_policy_on_user_create(self) -> None:
+    def test_no_password_policy(self) -> None:
         admin = self.login()
-        weak = admin.post("/api/auth/users", json={"username": "bob", "role": "viewer", "password": "secret"})
-        self.assertEqual(weak.status_code, 400)
+        short = admin.post("/api/auth/users", json={"username": "bob", "role": "viewer", "password": "a"})
+        self.assertEqual(short.status_code, 200, short.text)
+        self.assertEqual(admin.patch("/api/auth/users/bob", json={"password": "bob"}).status_code, 200)
+        self.assertEqual(admin.post("/api/auth/users", json={"username": "eve", "role": "viewer", "password": ""}).status_code, 422)
         bad_name = admin.post(
             "/api/auth/users", json={"username": "bob\nrole: admin", "role": "viewer", "password": VIEWER_PW}
         )
         self.assertEqual(bad_name.status_code, 422)
-
-    def test_admin_chooses_password_policy(self) -> None:
-        admin = self.login()
-        self.assertEqual(admin.get("/api/auth/password-policy").json()["min_length"], 8)
-        policy = {"min_length": 14, "require_lowercase": True, "require_uppercase": True,
-                  "require_digit": True, "require_symbol": True, "disallow_username": True}
-        self.assertEqual(admin.put("/api/auth/password-policy", json=policy).status_code, 200)
-
-        weak = admin.post("/api/auth/users", json={"username": "bob", "role": "viewer", "password": "alllowercase-long"})
-        self.assertEqual(weak.status_code, 400)
-        self.assertIn("an uppercase letter", weak.json()["detail"])
-        self.assertIn("a digit", weak.json()["detail"])
-        self.assertEqual(weak.json()["code"], "password.policy")
-        codes = [p["code"] for p in weak.json()["params"]["problems"]]
-        self.assertIn("password.uppercase", codes)
-        self.assertIn("password.digit", codes)
-        named = admin.post("/api/auth/users", json={"username": "bob", "role": "viewer", "password": "Bob-Password-1234"})
-        self.assertIn("no username", named.json()["detail"])
-        self.assertIn("password.no_username", [p["code"] for p in named.json()["params"]["problems"]])
-        strong = admin.post("/api/auth/users", json={"username": "bob", "role": "viewer", "password": "Tr0ub4dor&3-horse"})
-        self.assertEqual(strong.status_code, 200, strong.text)
-        # Applies to admin resets and self-service changes too.
-        self.assertEqual(admin.patch("/api/auth/users/bob", json={"password": "short1A!"}).status_code, 400)
-
-    def test_policy_floor_and_permissions(self) -> None:
-        admin = self.login()
-        self.assertEqual(admin.put("/api/auth/password-policy", json={"min_length": 4}).status_code, 422)
-        viewer = self.login("viewer", VIEWER_PW)
-        self.assertEqual(viewer.get("/api/auth/password-policy").status_code, 200)
-        self.assertEqual(viewer.put("/api/auth/password-policy", json={"min_length": 8}).status_code, 403)
-
-    def test_relaxed_policy_allows_shorter_password(self) -> None:
-        admin = self.login()
-        admin.put("/api/auth/password-policy", json={"min_length": 8, "disallow_username": False})
-        ok = admin.post("/api/auth/users", json={"username": "kid", "role": "viewer", "password": "eightchr"})
-        self.assertEqual(ok.status_code, 200, ok.text)
+        self.assertEqual(admin.get("/api/auth/password-policy").status_code, 404)
 
     def test_spoofed_forwarded_for_does_not_bypass_rate_limit(self) -> None:
         client = TestClient(app)
@@ -230,8 +198,14 @@ class CliTests(unittest.TestCase):
         self.assertTrue(saved["admin"]["must_change_password"])
         self.assertNotIn("must_change_password", saved["ops"])
 
-    def test_init_rejects_short_env_password(self) -> None:
-        with patch.dict(os.environ, {"DUI_ADMIN_PASSWORD": "dui"}), contextlib.redirect_stderr(io.StringIO()):
+    def test_init_accepts_short_env_password(self) -> None:
+        with patch.dict(os.environ, {"DUI_ADMIN_PASSWORD": "dui"}), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(cli.main(["init"]), 0)
+        users = yaml.safe_load((self.data_dir / "users.yaml").read_text())["users"]
+        self.assertNotIn("must_change_password", users[0])
+
+    def test_init_rejects_too_long_env_password(self) -> None:
+        with patch.dict(os.environ, {"DUI_ADMIN_PASSWORD": "x" * 73}), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(cli.main(["init"]), 1)
         self.assertFalse((self.data_dir / "users.yaml").exists())
 
