@@ -1294,17 +1294,24 @@ td button.danger {
 /* Network map                                                         */
 /* ------------------------------------------------------------------ */
 
+/* Wrap as many maps per row as fit, then grow them so every row spans the full width. */
 .map-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 1rem;
+}
+
+.map-grid > .card:not(.map-panel) {
+  flex: 1 1 100%;
 }
 
 .map-panel {
   position: relative;
   display: grid;
   gap: 0.75rem;
-  min-width: 0;
+  flex: 1 1 420px;
+  min-width: min(100%, 420px);
 }
 
 .map-panel:hover {
