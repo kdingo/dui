@@ -20,6 +20,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "map": "Map",
     "leases": "Leases",
     "logs": "View logs",
     "configure": "Configure",
@@ -68,6 +69,33 @@
     "used": "<strong>{{used, number}}</strong> <muted>used of {{total, number}}</muted>",
     "free": "{{count, number}} free",
     "empty": "No subnets configured yet."
+  },
+  "map": {
+    "title": "Map",
+    "subtitle": "Hilbert curve address map of configured subnets.",
+    "loadFailed": "Failed to load network map",
+    "empty": "No subnets configured yet.",
+    "mapLabel": "Address map of {{block}}",
+    "networks_one": "{{count, number}} network",
+    "networks_other": "{{count, number}} networks",
+    "perCell_one": "{{count, number}} address per cell",
+    "perCell_other": "{{count, number}} addresses per cell",
+    "outside": "Not in a configured subnet",
+    "counts": "{{leased, number}} leased · {{hosts, number}} fixed · {{pool, number}} in pool",
+    "legend": {
+      "outside": "Unconfigured",
+      "subnet": "Subnet",
+      "pool": "Pool",
+      "leased": "Leased",
+      "host": "Fixed host"
+    },
+    "status": {
+      "host": "Fixed host {{name}}",
+      "leased": "Leased",
+      "pool": "Free (in pool)",
+      "subnet": "Outside pool",
+      "outside": "Unconfigured"
+    }
   },
   "leases": {
     "title": "Leases",

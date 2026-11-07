@@ -50,6 +50,7 @@ export function AppLayout({ serverName }: AppLayoutProps) {
           <NavItem to="/" end>
             {t('nav.dashboard')}
           </NavItem>
+          <NavItem to="/map">{t('nav.map')}</NavItem>
           <NavItem to="/leases">{t('nav.leases')}</NavItem>
           <NavItem to="/logs">{t('nav.logs')}</NavItem>
           <span className="nav-group-title">{t('nav.configure')}</span>

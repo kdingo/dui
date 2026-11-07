@@ -10,6 +10,7 @@ import { AppLayout } from './layouts/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { MapPage } from './pages/MapPage'
 import { LeasesPage } from './pages/LeasesPage'
 import { LogsPage } from './pages/LogsPage'
 import { NetworksPage } from './pages/NetworksPage'
@@ -100,6 +101,7 @@ export default function App() {
             }
           >
             <Route index element={<DashboardPage />} />
+            <Route path="map" element={<MapPage />} />
             <Route path="leases" element={<LeasesPage />} />
             <Route path="logs" element={<LogsPage />} />
             <Route path="configure/networks" element={<NetworksPage />} />
