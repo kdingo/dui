@@ -1332,7 +1332,10 @@ td button.danger {
 
 .map-surface {
   position: relative;
-  width: 100%;
+  /* Cap height to the row budget (via width, to keep the aspect ratio).
+     Panel chrome: 2 × 1.15rem card padding + 0.75rem gap + 2px card border. */
+  width: min(100%, calc((var(--map-row-max, 100vh) - var(--map-head, 1.5rem) - 3.05rem - 2px) * var(--map-ratio, 1)));
+  margin-inline: auto;
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
   border: 1px solid var(--stroke);

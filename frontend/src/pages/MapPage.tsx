@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
@@ -228,8 +228,20 @@ interface HoverState {
 function MapPanel({ chunk, data }: { chunk: MapChunk; data: MapData }) {
   const { t } = useTranslation()
   const [hover, setHover] = useState<HoverState | null>(null)
+  const headRef = useRef<HTMLDivElement>(null)
+  const [headHeight, setHeadHeight] = useState<number | null>(null)
   const { grid, view } = chunk
   const block = chunkTitle(chunk)
+
+  // The header can wrap in narrow panels; its height is part of the row's height budget.
+  useLayoutEffect(() => {
+    const head = headRef.current
+    if (!head) return
+    const observer = new ResizeObserver(() => setHeadHeight(head.offsetHeight))
+    observer.observe(head)
+    setHeadHeight(head.offsetHeight)
+    return () => observer.disconnect()
+  }, [])
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -256,8 +268,9 @@ function MapPanel({ chunk, data }: { chunk: MapChunk; data: MapData }) {
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: EASE_OUT }}
+      style={headHeight !== null ? ({ '--map-head': `${headHeight}px` } as React.CSSProperties) : undefined}
     >
-      <div className="map-panel-head">
+      <div className="map-panel-head" ref={headRef}>
         <h3 className="mono">{block}</h3>
         <span className="muted">
           {t('map.networks', { count: chunk.subnets.length })} · {t('map.perCell', { count: grid.cellSize })}
@@ -265,7 +278,7 @@ function MapPanel({ chunk, data }: { chunk: MapChunk; data: MapData }) {
       </div>
       <div
         className="map-surface"
-        style={{ aspectRatio: `${view.w} / ${view.h}` }}
+        style={{ aspectRatio: `${view.w} / ${view.h}`, '--map-ratio': view.w / view.h } as React.CSSProperties}
         role="img"
         aria-label={t('map.mapLabel', { block })}
         onPointerMove={handlePointerMove}
@@ -366,6 +379,23 @@ export function MapPage() {
 
   const data = useMemo(() => (source ? buildMap(source.config, source.leases) : null), [source])
 
+  // Height left below the grid's top edge, so the first row of maps fits in the window.
+  const gridRef = useRef<HTMLDivElement>(null)
+  const [rowMax, setRowMax] = useState<number | null>(null)
+  const hasData = data !== null
+  useLayoutEffect(() => {
+    if (!hasData) return
+    function measure() {
+      const grid = gridRef.current
+      if (!grid) return
+      const top = grid.getBoundingClientRect().top + window.scrollY
+      setRowMax(Math.max(240, Math.floor(window.innerHeight - top - 16)))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [hasData, error])
+
   return (
     <div>
       <div className="actions page-header">
@@ -389,7 +419,11 @@ export function MapPage() {
             <li><i className="map-swatch leased" />{t('map.legend.leased')}</li>
             <li><i className="map-swatch host" />{t('map.legend.host')}</li>
           </ul>
-          <div className="map-grid">
+          <div
+            className="map-grid"
+            ref={gridRef}
+            style={rowMax !== null ? ({ '--map-row-max': `${rowMax}px` } as React.CSSProperties) : undefined}
+          >
             {data.chunks.map((chunk) => (
               <MapPanel key={`${chunk.grid.base}/${chunk.grid.hostBits}`} chunk={chunk} data={data} />
             ))}
