@@ -299,9 +299,27 @@ function MapPanel({ chunk, data }: { chunk: MapChunk; data: MapData }) {
             {w / view.w >= 0.12 && h / view.h >= 0.06 && <span>{subnet.label}</span>}
           </div>
         ))}
+        {hover && <HoverCell chunk={chunk} cell={hover.cell} />}
         {hover && <MapTooltip chunk={chunk} data={data} hover={hover} />}
       </div>
     </motion.div>
+  )
+}
+
+/** Outline over the hovered cell, positioned in the same percentage space as the subnet boxes. */
+function HoverCell({ chunk, cell }: { chunk: MapChunk; cell: number }) {
+  const { grid, view } = chunk
+  const [gx, gy] = d2xy(grid.side, cell)
+  return (
+    <div
+      className="map-hover-cell"
+      style={{
+        left: `${((gx - view.x) / view.w) * 100}%`,
+        top: `${((gy - view.y) / view.h) * 100}%`,
+        width: `${100 / view.w}%`,
+        height: `${100 / view.h}%`,
+      }}
+    />
   )
 }
 

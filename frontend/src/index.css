@@ -1339,7 +1339,8 @@ td button.danger {
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
   border: 1px solid var(--stroke);
-  cursor: crosshair;
+  /* The hover-cell highlight stands in for the pointer. */
+  cursor: none;
   touch-action: none;
 }
 
@@ -1373,6 +1374,17 @@ td button.danger {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.map-hover-cell {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--heading) 30%, transparent);
+  /* Outline sits outside the box, so even sub-pixel-sized cells stay visible. */
+  outline: 2px solid var(--heading);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--heading) 25%, transparent);
+  pointer-events: none;
 }
 
 .map-tooltip {
